@@ -1,9 +1,12 @@
 package com.notify.app.ui.components
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,6 +32,20 @@ fun UpdateDialog(
     var downloadProgress by remember { mutableFloatStateOf(0f) }
     var downloadedFile by remember { mutableStateOf<File?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    fun openInBrowser() {
+        try {
+            val url = updateInfo.downloadUrl.ifBlank {
+                "https://github.com/Nick-0-7/notify-app/releases"
+            }
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Could not open browser: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     AlertDialog(
         onDismissRequest = {
@@ -96,11 +113,28 @@ fun UpdateDialog(
                 }
 
                 errorMessage?.let { err ->
-                    Text(
-                        text = err,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = err,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        OutlinedButton(
+                            onClick = { openInBrowser() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                Icons.Default.OpenInBrowser,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Download in Browser")
+                        }
+                    }
                 }
             }
         },
@@ -146,8 +180,13 @@ fun UpdateDialog(
         },
         dismissButton = {
             if (!isDownloading) {
-                TextButton(onClick = onDismiss) {
-                    Text("Later")
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = { openInBrowser() }) {
+                        Text("Browser")
+                    }
+                    TextButton(onClick = onDismiss) {
+                        Text("Later")
+                    }
                 }
             }
         }

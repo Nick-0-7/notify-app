@@ -61,11 +61,13 @@ object UpdateManager {
 
         // 1. Try raw repository version.json first
         try {
-            val connection = URL(REMOTE_VERSION_URL).openConnection() as HttpURLConnection
+            val cacheBusterUrl = "$REMOTE_VERSION_URL?nocache=${System.currentTimeMillis()}"
+            val connection = URL(cacheBusterUrl).openConnection() as HttpURLConnection
             connection.connectTimeout = 8000
             connection.readTimeout = 8000
             connection.requestMethod = "GET"
             connection.setRequestProperty("User-Agent", "Notify-Android-App")
+            connection.setRequestProperty("Cache-Control", "no-cache")
 
             if (connection.responseCode == 200) {
                 val jsonString = connection.inputStream.bufferedReader().use { it.readText() }
@@ -170,6 +172,7 @@ object UpdateManager {
         downloadUrl: String,
         onProgress: (Float) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
+        var currentConnection: HttpURLConnection? = null
         try {
             val updatesDir = File(context.cacheDir, "updates")
             if (!updatesDir.exists()) updatesDir.mkdirs()
@@ -177,25 +180,68 @@ object UpdateManager {
             val outputFile = File(updatesDir, "Notify-update.apk")
             if (outputFile.exists()) outputFile.delete()
 
-            val url = URL(downloadUrl)
-            val connection = url.openConnection() as HttpURLConnection
-            connection.connectTimeout = 15000
-            connection.readTimeout = 30000
-            connection.setRequestProperty("User-Agent", "Notify-Android-App")
-            connection.connect()
+            var currentUrl = downloadUrl
+            var redirectCount = 0
+            val maxRedirects = 8
 
-            val totalBytes = connection.contentLength
+            while (true) {
+                val url = URL(currentUrl)
+                val conn = (url.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 20000
+                    readTimeout = 35000
+                    instanceFollowRedirects = true
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                    setRequestProperty("Accept", "*/*")
+                }
+
+                val code = conn.responseCode
+                Log.d(TAG, "HTTP $code from $currentUrl")
+
+                if (code in 300..308 && code != 304) {
+                    val location = conn.getHeaderField("Location")
+                    conn.disconnect()
+                    if (!location.isNullOrBlank() && redirectCount < maxRedirects) {
+                        currentUrl = if (location.startsWith("http://") || location.startsWith("https://")) {
+                            location
+                        } else {
+                            URL(url, location).toString()
+                        }
+                        redirectCount++
+                        continue
+                    } else {
+                        return@withContext Result.failure(java.io.IOException("Too many redirects or missing Location header (HTTP $code)"))
+                    }
+                }
+
+                if (code != HttpURLConnection.HTTP_OK && code != HttpURLConnection.HTTP_PARTIAL) {
+                    conn.disconnect()
+                    return@withContext Result.failure(java.io.IOException("Server returned HTTP $code: ${conn.responseMessage}"))
+                }
+
+                currentConnection = conn
+                break
+            }
+
+            val conn = currentConnection ?: throw java.io.IOException("Unable to establish connection")
+            val totalBytes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                conn.contentLengthLong.takeIf { it > 0 } ?: conn.contentLength.toLong()
+            } else {
+                conn.contentLength.toLong()
+            }
             var downloadedBytes = 0L
 
-            connection.inputStream.use { input: InputStream ->
+            conn.inputStream.use { input: InputStream ->
                 FileOutputStream(outputFile).use { output: FileOutputStream ->
-                    val buffer = ByteArray(8192)
+                    val buffer = ByteArray(32768)
                     var bytesRead: Int
+                    var lastProgressUpdate = 0L
                     while (input.read(buffer).also { bytesRead = it } != -1) {
                         output.write(buffer, 0, bytesRead)
                         downloadedBytes += bytesRead
-                        if (totalBytes > 0) {
-                            val progress = downloadedBytes.toFloat() / totalBytes.toFloat()
+                        val now = System.currentTimeMillis()
+                        if (totalBytes > 0 && (now - lastProgressUpdate > 100 || downloadedBytes == totalBytes)) {
+                            lastProgressUpdate = now
+                            val progress = (downloadedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
                             withContext(Dispatchers.Main) {
                                 onProgress(progress)
                             }
@@ -210,8 +256,10 @@ object UpdateManager {
             }
             Result.success(outputFile)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed downloading update APK", e)
+            Log.e(TAG, "Failed downloading update APK from $downloadUrl", e)
             Result.failure(e)
+        } finally {
+            currentConnection?.disconnect()
         }
     }
 
