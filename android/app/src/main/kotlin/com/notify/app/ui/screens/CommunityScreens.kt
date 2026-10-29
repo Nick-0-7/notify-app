@@ -56,7 +56,16 @@ fun StudentCommunityScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Student Hub", fontWeight = FontWeight.Bold) },
+                title = {
+                    Column {
+                        Text("Student Hub", fontWeight = FontWeight.Bold)
+                        Text(
+                            "Posts auto-expire after 7 days",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 actions = {
                     IconButton(onClick = { loadPosts() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")

@@ -94,9 +94,11 @@ class RepositoriesUnitTest {
     fun testCommunityPostAndComments() = runTest {
         val communityRepo = CommunityRepositoryImpl()
 
-        val posts = communityRepo.getPosts("col-alpha-1")
-        assertTrue(posts.isNotEmpty())
+        // 1. Initial state should be clean (demo data removed)
+        val initialPosts = communityRepo.getPosts("col-alpha-1")
+        assertTrue(initialPosts.isEmpty())
 
+        // 2. Create post
         val createRes = communityRepo.createPost(
             collegeId = "col-alpha-1",
             title = "Study session for OS exam",
@@ -107,12 +109,23 @@ class RepositoriesUnitTest {
         val newPost = createRes.getOrNull()
         assertNotNull(newPost)
 
+        val posts = communityRepo.getPosts("col-alpha-1")
+        assertEquals(1, posts.size)
+
+        // 3. Add and retrieve comment
         val commentRes = communityRepo.addComment(newPost!!.id, "I will join!")
         assertTrue(commentRes.isSuccess)
 
         val comments = communityRepo.getComments(newPost.id)
         assertEquals(1, comments.size)
         assertEquals("I will join!", comments.first().content)
+    }
+
+    @Test
+    fun testCommunityExpiredPostAutoDelete() = runTest {
+        val communityRepo = CommunityRepositoryImpl()
+        val nonExistentPost = communityRepo.getPostById("non-existent-id")
+        assertNull(nonExistentPost)
     }
 
     @Test

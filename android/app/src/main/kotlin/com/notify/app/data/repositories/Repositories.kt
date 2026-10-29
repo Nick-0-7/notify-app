@@ -12,6 +12,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import java.util.UUID
 
 // ==========================================
@@ -659,92 +663,46 @@ interface CommunityRepository {
 }
 
 class CommunityRepositoryImpl : CommunityRepository {
-    private val posts = mutableListOf(
-        StudentPost(
-            id = "post-sit-001",
-            collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
-            authorId = "mock-user-1",
-            title = "SITCOE Hackathon 2024 - Tech Innovators Club",
-            content = "Hey SITCOEians! Calling all computer, IT, and electronics students for our upcoming annual project showcase & hackathon. Teams of up to 4 members can register at the department lab.",
-            postType = PostType.EVENT,
-            createdAt = "2026-10-28T10:00:00Z",
-            author = UserProfile(id = "mock-user-1", fullName = "Nikhil Sharma", bio = "SITCOE Student"),
-            commentsCount = 4,
-            reactionsCount = mapOf("LIKE" to 22, "IMPORTANT" to 15),
-            userReaction = ReactionType.LIKE
-        ),
-        StudentPost(
-            id = "post-sit-002",
-            collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
-            authorId = "user-2",
-            title = "Direct Second Year (DSY) Syllabus & Lecture Schedule",
-            content = "For newly admitted DSY students in Mechanical & Computer branches, here are the drive links to subject syllabus, lab manuals, and timetable.",
-            postType = PostType.RESOURCE,
-            createdAt = "2026-10-28T12:30:00Z",
-            author = UserProfile(id = "user-2", fullName = "Aarav Patil", bio = "SITCOE Student Council"),
-            commentsCount = 2,
-            reactionsCount = mapOf("LIKE" to 18, "HELPFUL" to 14)
-        ),
-        StudentPost(
-            id = "post-001",
-            collegeId = "col-alpha-1",
-            authorId = "mock-user-1",
-            title = "Discrete Mathematics Past 5 Years Solved Papers",
-            content = "Hey everyone! Uploaded clean, compiled notes and past year solved question papers for the upcoming midterms. Hope this helps!",
-            postType = PostType.RESOURCE,
-            createdAt = "2026-10-27T16:20:00Z",
-            author = UserProfile(id = "mock-user-1", fullName = "Nikhil Sharma", bio = "CS 3rd Year"),
-            attachments = listOf(
-                PostAttachment(
-                    id = "att-1",
-                    postId = "post-001",
-                    fileUrl = "https://apex.edu/files/discrete-math-notes.pdf",
-                    storagePath = "col-alpha-1/post-001/notes.pdf",
-                    fileName = "Discrete_Math_Solved_Papers.pdf",
-                    fileSizeBytes = 2450000,
-                    mimeType = "application/pdf",
-                    fileType = AttachmentType.PDF
-                )
-            ),
-            commentsCount = 3,
-            reactionsCount = mapOf("LIKE" to 14, "HELPFUL" to 9),
-            userReaction = ReactionType.HELPFUL
-        ),
-        StudentPost(
-            id = "post-002",
-            collegeId = "col-alpha-1",
-            authorId = "user-2",
-            title = "Forming a Team for National Hackathon 2026",
-            content = "Looking for 2 frontend/mobile developers (Compose or Flutter) and 1 ML engineer for the Smart Campus challenge. Ping here or DM!",
-            postType = PostType.QUESTION,
-            createdAt = "2026-10-27T18:00:00Z",
-            author = UserProfile(id = "user-2", fullName = "Aarav Patel", bio = "Software Club Lead"),
-            commentsCount = 5,
-            reactionsCount = mapOf("LIKE" to 8, "IMPORTANT" to 4)
-        )
-    )
+    // Demo data cleared - starts completely fresh for live students
+    private val posts = mutableListOf<StudentPost>()
+    private val comments = mutableListOf<Comment>()
 
-    private val comments = mutableListOf(
-        Comment(
-            id = "c-1",
-            postId = "post-001",
-            authorId = "user-2",
-            content = "This is insanely helpful, thanks a lot Nikhil!",
-            createdAt = "2026-10-27T16:45:00Z",
-            author = UserProfile(id = "user-2", fullName = "Aarav Patel")
-        ),
-        Comment(
-            id = "c-2",
-            postId = "post-001",
-            authorId = "user-3",
-            content = "Are solutions for Chapter 4 included?",
-            createdAt = "2026-10-27T17:10:00Z",
-            author = UserProfile(id = "user-3", fullName = "Priya Rao")
+    private fun isExpired(createdAtStr: String?): Boolean {
+        if (createdAtStr.isNullOrBlank()) return false
+        if (createdAtStr.equals("Just now", ignoreCase = true)) return false
+        val formats = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd"
         )
-    )
+        for (fmt in formats) {
+            try {
+                val sdf = SimpleDateFormat(fmt, Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }
+                val parsed = sdf.parse(createdAtStr)
+                if (parsed != null) {
+                    val oneWeekMs = 7L * 24 * 60 * 60 * 1000L // 7 days (1 week)
+                    return (System.currentTimeMillis() - parsed.time) > oneWeekMs
+                }
+            } catch (_: Exception) {}
+        }
+        return false
+    }
+
+    private fun purgeExpiredPosts() {
+        val expiredIds = posts.filter { isExpired(it.createdAt) }.map { it.id }.toSet()
+        if (expiredIds.isNotEmpty()) {
+            posts.removeAll { it.id in expiredIds }
+            comments.removeAll { it.postId in expiredIds }
+        }
+    }
 
     override suspend fun getPosts(collegeId: String, type: PostType?): List<StudentPost> = withContext(Dispatchers.IO) {
-        posts.filter { it.collegeId == collegeId && (type == null || it.postType == type) }
+        purgeExpiredPosts()
+        posts.filter { it.collegeId == collegeId && (type == null || it.postType == type) && !isExpired(it.createdAt) }
     }
 
     override suspend fun createPost(
@@ -754,15 +712,19 @@ class CommunityRepositoryImpl : CommunityRepository {
         type: PostType,
         attachments: List<PostAttachment>
     ): Result<StudentPost> = withContext(Dispatchers.IO) {
+        purgeExpiredPosts()
+        val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
         val newPost = StudentPost(
             id = UUID.randomUUID().toString(),
             collegeId = collegeId,
-            authorId = "mock-user-1",
+            authorId = "current-user",
             title = title.trim(),
             content = content.trim(),
             postType = type,
-            createdAt = "Just now",
-            author = UserProfile(id = "mock-user-1", fullName = "John Doe"),
+            createdAt = isoFormat.format(Date()),
+            author = UserProfile(id = "current-user", fullName = "Student"),
             attachments = attachments,
             commentsCount = 0,
             reactionsCount = emptyMap()
@@ -772,32 +734,64 @@ class CommunityRepositoryImpl : CommunityRepository {
     }
 
     override suspend fun getPostById(postId: String): StudentPost? = withContext(Dispatchers.IO) {
-        posts.find { it.id == postId }
+        purgeExpiredPosts()
+        posts.find { it.id == postId && !isExpired(it.createdAt) }
     }
 
     override suspend fun getComments(postId: String): List<Comment> = withContext(Dispatchers.IO) {
+        purgeExpiredPosts()
         comments.filter { it.postId == postId }
     }
 
     override suspend fun addComment(postId: String, content: String): Result<Comment> = withContext(Dispatchers.IO) {
+        purgeExpiredPosts()
+        val targetPost = posts.find { it.id == postId && !isExpired(it.createdAt) }
+            ?: return@withContext Result.failure(Exception("Post not found or expired"))
+
+        val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
         val newComment = Comment(
             id = UUID.randomUUID().toString(),
             postId = postId,
-            authorId = "mock-user-1",
+            authorId = "current-user",
             content = content.trim(),
-            createdAt = "Just now",
-            author = UserProfile(id = "mock-user-1", fullName = "John Doe")
+            createdAt = isoFormat.format(Date()),
+            author = UserProfile(id = "current-user", fullName = "Student")
         )
         comments.add(newComment)
+
+        // Increment comments count on parent post
+        val idx = posts.indexOfFirst { it.id == postId }
+        if (idx != -1) {
+            posts[idx] = posts[idx].copy(commentsCount = posts[idx].commentsCount + 1)
+        }
+
         Result.success(newComment)
     }
 
     override suspend fun toggleReaction(postId: String, reactionType: ReactionType): Result<Unit> = withContext(Dispatchers.IO) {
+        purgeExpiredPosts()
+        val idx = posts.indexOfFirst { it.id == postId }
+        if (idx != -1) {
+            val currentPost = posts[idx]
+            val key = reactionType.name
+            val currentCount = currentPost.reactionsCount[key] ?: 0
+            val newMap = currentPost.reactionsCount.toMutableMap()
+            if (currentPost.userReaction == reactionType) {
+                newMap[key] = (currentCount - 1).coerceAtLeast(0)
+                posts[idx] = currentPost.copy(reactionsCount = newMap, userReaction = null)
+            } else {
+                newMap[key] = currentCount + 1
+                posts[idx] = currentPost.copy(reactionsCount = newMap, userReaction = reactionType)
+            }
+        }
         Result.success(Unit)
     }
 
     override suspend fun deletePost(postId: String): Result<Unit> = withContext(Dispatchers.IO) {
         posts.removeAll { it.id == postId }
+        comments.removeAll { it.postId == postId }
         Result.success(Unit)
     }
 }
