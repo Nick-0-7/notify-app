@@ -45,9 +45,9 @@ build/
 */build/
 captures/
 .externalNativeBuild
-.cxx/
 local.properties
 *.keystore
+!android/app/debug.keystore
 *.apk
 *.aab
 

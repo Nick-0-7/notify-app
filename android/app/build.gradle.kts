@@ -12,14 +12,27 @@ android {
     applicationId = "com.notify.app"
     minSdk = 26
     targetSdk = 36
-    versionCode = 4
-    versionName = "1.0.3"
+    versionCode = 5
+    versionName = "1.0.4"
+  }
+
+  signingConfigs {
+    getByName("debug") {
+      storeFile = file("debug.keystore")
+      storePassword = "android"
+      keyAlias = "androiddebugkey"
+      keyPassword = "android"
+    }
   }
 
   buildTypes {
+    debug {
+      signingConfig = signingConfigs.getByName("debug")
+    }
     release {
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+      signingConfig = signingConfigs.getByName("debug")
     }
   }
   compileOptions {
