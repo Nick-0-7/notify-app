@@ -56,11 +56,16 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Extract deep-link notice id if opened from notification or URL scheme
-        val deepLinkNoticeId = extractNoticeId(intent)
+        // Initialize persistent user session & active college
+        com.notify.app.core.SessionManager.init(this)
+        com.notify.app.data.repositories.RepositoryLocator.authRepository.initialize(this)
+        com.notify.app.data.repositories.RepositoryLocator.collegeRepository.initialize(this)
 
         // Handle OAuth deep link callbacks
         handleAuthDeeplink(intent)
+
+        // Extract deep-link notice id if opened from notification or URL scheme
+        val deepLinkNoticeId = extractNoticeId(intent)
 
         enableEdgeToEdge()
         setContent {

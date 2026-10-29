@@ -32,21 +32,48 @@ interface AuthRepository {
     suspend fun updateProfile(fullName: String, bio: String): Result<UserProfile>
     suspend fun refreshCurrentUser(): UserProfile?
     fun setCurrentUser(profile: UserProfile)
+    fun initialize(context: android.content.Context)
 }
 
 class AuthRepositoryImpl(private val forceMock: Boolean = false) : AuthRepository {
     private val isLive get() = !forceMock && SupabaseClientProvider.isConfigured
 
     private val _currentUser = MutableStateFlow<UserProfile?>(
-        UserProfile(
-            id = "mock-user-1",
-            fullName = "John Doe",
-            bio = "Computer Science Student | 3rd Year",
-            avatarUrl = null,
-            isSystemAdmin = true
-        )
+        com.notify.app.core.SessionManager.getSavedProfile()
     )
     override val currentUserState: StateFlow<UserProfile?> = _currentUser
+
+    override fun initialize(context: android.content.Context) {
+        com.notify.app.core.SessionManager.init(context)
+        val saved = com.notify.app.core.SessionManager.getSavedProfile(context)
+        if (saved != null) {
+            _currentUser.value = saved
+        }
+        if (isLive) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val user = SupabaseClientProvider.auth.currentUserOrNull()
+                    if (user != null) {
+                        val meta = user.userMetadata
+                        val name = meta?.get("full_name")?.toString()?.trim('"')
+                            ?: user.email?.substringBefore("@")
+                            ?: "Student"
+                        val profile = UserProfile(
+                            id = user.id,
+                            fullName = name,
+                            bio = "Student",
+                            isSystemAdmin = false
+                        )
+                        _currentUser.value = profile
+                        com.notify.app.core.SessionManager.saveProfile(context, profile)
+                        syncDeviceTokenIfAvailable()
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("AuthRepo", "Error restoring session: ${e.message}")
+                }
+            }
+        }
+    }
 
     override suspend fun signUp(email: String, pass: String, fullName: String): Result<UserProfile> = withContext(Dispatchers.IO) {
         try {
@@ -122,6 +149,7 @@ class AuthRepositoryImpl(private val forceMock: Boolean = false) : AuthRepositor
                 }
                 if (user != null) {
                     _currentUser.value = profile
+                    com.notify.app.core.SessionManager.saveProfile(profile = profile)
                     syncDeviceTokenIfAvailable()
                 }
                 Result.success(profile)
@@ -133,6 +161,7 @@ class AuthRepositoryImpl(private val forceMock: Boolean = false) : AuthRepositor
                     isSystemAdmin = false
                 )
                 _currentUser.value = profile
+                com.notify.app.core.SessionManager.saveProfile(profile = profile)
                 Result.success(profile)
             }
         } catch (e: Exception) {
@@ -142,6 +171,7 @@ class AuthRepositoryImpl(private val forceMock: Boolean = false) : AuthRepositor
 
     override fun setCurrentUser(profile: UserProfile) {
         _currentUser.value = profile
+        com.notify.app.core.SessionManager.saveProfile(profile = profile)
         CoroutineScope(Dispatchers.IO).launch {
             syncDeviceTokenIfAvailable()
         }
@@ -161,9 +191,11 @@ class AuthRepositoryImpl(private val forceMock: Boolean = false) : AuthRepositor
             if (SupabaseClientProvider.isConfigured) {
                 SupabaseClientProvider.auth.signOut()
             }
+            com.notify.app.core.SessionManager.clearSession()
             _currentUser.value = null
             Result.success(Unit)
         } catch (e: Exception) {
+            com.notify.app.core.SessionManager.clearSession()
             _currentUser.value = null
             Result.success(Unit)
         }
@@ -200,6 +232,7 @@ interface CollegeRepository {
     suspend fun getUserMemberships(userId: String): List<CollegeMembership>
     suspend fun joinCollege(collegeId: String, studentId: String): Result<CollegeMembership>
     fun setActiveCollege(college: College)
+    fun initialize(context: android.content.Context)
 }
 
 class CollegeRepositoryImpl(private val forceMock: Boolean = false) : CollegeRepository {
@@ -270,6 +303,17 @@ class CollegeRepositoryImpl(private val forceMock: Boolean = false) : CollegeRep
     private val _activeCollege = MutableStateFlow<College?>(sitcoeCollege)
     override val activeCollegeState: StateFlow<College?> = _activeCollege
 
+    override fun initialize(context: android.content.Context) {
+        com.notify.app.core.SessionManager.init(context)
+        val savedId = com.notify.app.core.SessionManager.getActiveCollegeId(context)
+        if (savedId != null) {
+            val matching = sampleColleges.find { it.id == savedId }
+            if (matching != null) {
+                _activeCollege.value = matching
+            }
+        }
+    }
+
     override suspend fun getColleges(): List<College> = withContext(Dispatchers.IO) {
         if (SupabaseClientProvider.isConfigured && !forceMock) {
             try {
@@ -300,11 +344,13 @@ class CollegeRepositoryImpl(private val forceMock: Boolean = false) : CollegeRep
         )
         memberships.add(mem)
         _activeCollege.value = col
+        com.notify.app.core.SessionManager.saveActiveCollegeId(collegeId = col.id)
         Result.success(mem)
     }
 
     override fun setActiveCollege(college: College) {
         _activeCollege.value = college
+        com.notify.app.core.SessionManager.saveActiveCollegeId(collegeId = college.id)
     }
 }
 
@@ -855,7 +901,11 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
                         }
                         order(column = "created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                     }.decodeList<StudentPost>()
-                if (live.isNotEmpty()) (live + posts).distinctBy { it.id } else posts
+                if (live.isNotEmpty()) {
+                    posts.clear()
+                    posts.addAll(live)
+                    live
+                } else posts
             } catch (e: Exception) {
                 println("[CommunityRepo] Error fetching live student posts from Supabase: ${e.message}")
                 posts
