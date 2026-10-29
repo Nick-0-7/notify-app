@@ -53,13 +53,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name || github.event.inputs.version_tag }}
           name: Notify ${{ github.ref_name || github.event.inputs.version_tag }}
-          body: |
-            ### What's New in this Release:
-            - **Dual-Engine OCR**: Native Windows Media OCR & Tesseract OCR for scanned PDF circulars.
-            - **Intelligent Deadline Milestones**: Multi-tier deadline detection (ranges, without late fee, late fee).
-            - **1-Tap Add to Google Calendar**: Direct calendar event creator from notice detail screen.
-            - **Smart Form Action Buttons**: Instant "Open Form" launcher for notices with Google Forms.
-            - **In-App Auto Updater**: Update checker with user permission & progress download.
+          generate_release_notes: true
           files: release-artifacts/Notify-v1.0.apk
           draft: false
           prerelease: false
