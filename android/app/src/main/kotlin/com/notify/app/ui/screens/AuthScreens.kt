@@ -97,6 +97,13 @@ fun AuthScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val currentUser by RepositoryLocator.authRepository.currentUserState.collectAsState()
+
+    LaunchedEffect(currentUser) {
+        if (currentUser != null && currentUser?.id != "pending-google") {
+            onAuthSuccess()
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -267,10 +274,11 @@ fun AuthScreen(
                     scope.launch {
                         val authRepo = RepositoryLocator.authRepository
                         val result = authRepo.signInWithGoogle()
+                        val profile = result.getOrNull()
                         isLoading = false
-                        if (result.isSuccess) {
+                        if (result.isSuccess && profile != null && profile.id != "pending-google") {
                             onAuthSuccess()
-                        } else {
+                        } else if (result.isFailure) {
                             errorMessage = result.exceptionOrNull()?.localizedMessage ?: "Google sign-in failed."
                         }
                     }

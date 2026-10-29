@@ -6,9 +6,11 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -29,6 +31,7 @@ interface AuthRepository {
     suspend fun signOut(): Result<Unit>
     suspend fun updateProfile(fullName: String, bio: String): Result<UserProfile>
     suspend fun refreshCurrentUser(): UserProfile?
+    fun setCurrentUser(profile: UserProfile)
 }
 
 class AuthRepositoryImpl(private val forceMock: Boolean = false) : AuthRepository {
@@ -115,10 +118,12 @@ class AuthRepositoryImpl(private val forceMock: Boolean = false) : AuthRepositor
                     val name = meta?.get("full_name")?.toString()?.trim('"') ?: user.email?.substringBefore("@") ?: "Google Student"
                     UserProfile(id = user.id, fullName = name, bio = "Student", isSystemAdmin = false)
                 } else {
-                    UserProfile(id = UUID.randomUUID().toString(), fullName = "Google Student", bio = "Student", isSystemAdmin = false)
+                    UserProfile(id = "pending-google", fullName = "Google Student", bio = "Student", isSystemAdmin = false)
                 }
-                _currentUser.value = profile
-                syncDeviceTokenIfAvailable()
+                if (user != null) {
+                    _currentUser.value = profile
+                    syncDeviceTokenIfAvailable()
+                }
                 Result.success(profile)
             } else {
                 val profile = UserProfile(
@@ -132,6 +137,13 @@ class AuthRepositoryImpl(private val forceMock: Boolean = false) : AuthRepositor
             }
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    override fun setCurrentUser(profile: UserProfile) {
+        _currentUser.value = profile
+        CoroutineScope(Dispatchers.IO).launch {
+            syncDeviceTokenIfAvailable()
         }
     }
 

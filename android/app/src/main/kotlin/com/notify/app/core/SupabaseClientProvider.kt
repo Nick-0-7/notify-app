@@ -31,6 +31,8 @@ object SupabaseClientProvider {
                 ) {
                     httpEngine = OkHttp.create()
                     install(Auth) {
+                        scheme = "notify"
+                        host = "login-callback"
                         sessionManager = try {
                             io.github.jan.supabase.auth.SettingsSessionManager()
                         } catch (_: Throwable) {

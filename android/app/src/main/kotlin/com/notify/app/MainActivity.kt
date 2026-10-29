@@ -21,6 +21,7 @@ import com.notify.app.core.NotificationHelper
 import com.notify.app.core.TokenManager
 import com.notify.app.ui.navigation.AppNavigation
 import com.notify.app.ui.theme.NotifyTheme
+import io.github.jan.supabase.auth.handleDeeplinks
 
 class MainActivity : ComponentActivity() {
 
@@ -58,6 +59,9 @@ class MainActivity : ComponentActivity() {
         // Extract deep-link notice id if opened from notification or URL scheme
         val deepLinkNoticeId = extractNoticeId(intent)
 
+        // Handle OAuth deep link callbacks
+        handleAuthDeeplink(intent)
+
         enableEdgeToEdge()
         setContent {
             NotifyTheme {
@@ -74,6 +78,34 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        handleAuthDeeplink(intent)
+    }
+
+    private fun handleAuthDeeplink(intent: Intent?) {
+        if (intent == null) return
+        if (com.notify.app.core.SupabaseClientProvider.isConfigured) {
+            try {
+                com.notify.app.core.SupabaseClientProvider.client.handleDeeplinks(intent = intent) { session ->
+                    Log.d("MainActivity", "OAuth session received: ${session.user?.id}")
+                    val user = session.user
+                    if (user != null) {
+                        val meta = user.userMetadata
+                        val name = meta?.get("full_name")?.toString()?.trim('"')
+                            ?: user.email?.substringBefore("@")
+                            ?: "Google Student"
+                        val profile = com.notify.app.domain.models.UserProfile(
+                            id = user.id,
+                            fullName = name,
+                            bio = "Student",
+                            isSystemAdmin = false
+                        )
+                        com.notify.app.data.repositories.RepositoryLocator.authRepository.setCurrentUser(profile)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Error processing auth deep link: ${e.message}")
+            }
+        }
     }
 
     private fun extractNoticeId(intent: Intent?): String? {
