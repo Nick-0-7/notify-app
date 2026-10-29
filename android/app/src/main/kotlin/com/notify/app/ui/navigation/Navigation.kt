@@ -7,10 +7,14 @@ import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.notify.app.core.AppUpdateInfo
+import com.notify.app.core.UpdateManager
 import com.notify.app.domain.models.ReportTarget
+import com.notify.app.ui.components.UpdateDialog
 import com.notify.app.ui.screens.*
 
 sealed class Screen(val route: String) {
@@ -157,7 +161,23 @@ fun MainContainerScreen(
     onNavigateToAdmin: () -> Unit,
     onSignOut: () -> Unit
 ) {
+    val context = LocalContext.current
     var selectedTab by remember { mutableStateOf(BottomTab.HOME) }
+    var availableUpdate by remember { mutableStateOf<AppUpdateInfo?>(null) }
+
+    LaunchedEffect(Unit) {
+        val update = UpdateManager.checkForUpdates(context)
+        if (update != null && update.isUpdateAvailable) {
+            availableUpdate = update
+        }
+    }
+
+    availableUpdate?.let { updateInfo ->
+        UpdateDialog(
+            updateInfo = updateInfo,
+            onDismiss = { availableUpdate = null }
+        )
+    }
 
     Scaffold(
         bottomBar = {

@@ -15,7 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import com.notify.app.core.AppUpdateInfo
+import com.notify.app.core.UpdateManager
 import com.notify.app.data.repositories.RepositoryLocator
+import com.notify.app.ui.components.UpdateDialog
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,6 +45,10 @@ fun UserProfileScreen(
     var repliesAlertsEnabled by remember { mutableStateOf(true) }
 
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var updateDialogInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
+    var isCheckingUpdates by remember { mutableStateOf(false) }
+    val (versionName, versionCode) = remember { UpdateManager.getCurrentVersion(context) }
 
     Scaffold(
         topBar = {
@@ -238,7 +247,7 @@ fun UserProfileScreen(
                             shape = RoundedCornerShape(6.dp)
                         ) {
                             Text(
-                                text = "v1.0.0",
+                                text = "v$versionName ($versionCode)",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -251,7 +260,43 @@ fun UserProfileScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = {
+                            if (!isCheckingUpdates) {
+                                isCheckingUpdates = true
+                                scope.launch {
+                                    val update = UpdateManager.checkForUpdates(context)
+                                    isCheckingUpdates = false
+                                    if (update != null && update.isUpdateAvailable) {
+                                        updateDialogInfo = update
+                                    } else {
+                                        Toast.makeText(context, "You're up to date! (v$versionName)", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        if (isCheckingUpdates) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Checking for updates...")
+                        } else {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Check for Updates")
+                        }
+                    }
                 }
+            }
+
+            updateDialogInfo?.let { update ->
+                UpdateDialog(
+                    updateInfo = update,
+                    onDismiss = { updateDialogInfo = null }
+                )
             }
 
             // Sign Out Button

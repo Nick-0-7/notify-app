@@ -1,0 +1,7 @@
+{
+  "versionCode": 1,
+  "versionName": "1.0",
+  "title": "Notify v1.0",
+  "releaseNotes": "• Dual-engine OCR for scanned PDF circulars\n• Multi-tier deadline milestone extraction\n• Add Deadline to Google Calendar button\n• Google Forms fast launcher\n• In-app update checker",
+  "downloadUrl": "https://raw.githubusercontent.com/Nick-0-7/notify-app/main/Notify-v1.0.apk"
+}
