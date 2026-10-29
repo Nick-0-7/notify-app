@@ -485,6 +485,106 @@ class NoticeRepositoryImpl : NoticeRepository {
                 confidenceScore = 0.93f,
                 isVerifiedByModerator = true
             )
+        ),
+        Notice(
+            id = "not-w26-reval-01",
+            collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
+            sourceId = "a7102f00-13c6-431d-83a2-7309e1caa332",
+            canonicalUrl = "https://forms.gle/WM52KtEUacsNdxV49",
+            originalUrl = "https://forms.gle/WM52KtEUacsNdxV49",
+            title = "Revaluation of Winter Semester Examination 2026 (Backlog Course) Final Year B.Tech (Sem-VII)",
+            rawContent = "Examination Cell Circular: Online revaluation applications open for Winter Semester Examination 2026 Backlog courses Final Year B.Tech Semester VII. Fill form via direct portal link.",
+            normalizedContent = "revaluation winter semester examination 2026 backlog course final year btech sem vii",
+            contentHash = "f0a1b2c3d4e5f6789012345678abcdef0123456789abcdef0123456789abc01",
+            documentType = "HTML",
+            publishedAt = "2026-10-29T14:00:00Z",
+            extraction = NoticeExtraction(
+                id = "ext-w26-01",
+                noticeId = "not-w26-reval-01",
+                category = NoticeCategory.EXAMINATION,
+                datesExtracted = listOf("Winter Semester Examination 2026", "2026-11-10 (Application Deadline)"),
+                deadlinesExtracted = listOf("2026-11-10T23:59:00Z"),
+                eligibilityCriteria = listOf("Final Year B.Tech Sem-VII Backlog candidates"),
+                requiredDocuments = listOf("Winter 2026 Mark Sheet Copy", "Fee Payment Receipt"),
+                actionItems = listOf("Complete online Google Form application before deadline"),
+                confidenceScore = 0.98f,
+                isVerifiedByModerator = true
+            )
+        ),
+        Notice(
+            id = "not-w26-photo-01",
+            collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
+            sourceId = "a7102f00-13c6-431d-83a2-7309e1caa332",
+            canonicalUrl = "https://forms.gle/sVFqBCU211aSpEA4A",
+            originalUrl = "https://forms.gle/sVFqBCU211aSpEA4A",
+            title = "Photocopy of Winter Semester Examination 2026 (Backlog Course) Final Year B.Tech (Sem-VII)",
+            rawContent = "Controller of Examinations: Apply for verified photocopies of answer books for Winter Semester Examination 2026 Backlog courses Final Year B.Tech.",
+            normalizedContent = "photocopy winter semester examination 2026 backlog course final year btech sem vii",
+            contentHash = "f0a1b2c3d4e5f6789012345678abcdef0123456789abcdef0123456789abc02",
+            documentType = "HTML",
+            publishedAt = "2026-10-29T14:05:00Z",
+            extraction = NoticeExtraction(
+                id = "ext-w26-02",
+                noticeId = "not-w26-photo-01",
+                category = NoticeCategory.EXAMINATION,
+                datesExtracted = listOf("Winter Semester Examination 2026", "2026-11-10 (Photocopy Deadline)"),
+                deadlinesExtracted = listOf("2026-11-10T23:59:00Z"),
+                eligibilityCriteria = listOf("Final Year B.Tech Sem-VII students"),
+                requiredDocuments = listOf("Hall Ticket Number", "Online Transaction Reference"),
+                actionItems = listOf("Submit Google Form request with subject details"),
+                confidenceScore = 0.98f,
+                isVerifiedByModerator = true
+            )
+        ),
+        Notice(
+            id = "not-w26-reval-nep",
+            collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
+            sourceId = "a7102f00-13c6-431d-83a2-7309e1caa332",
+            canonicalUrl = "https://forms.gle/pi3nuXSCJUQh5Ckm8",
+            originalUrl = "https://forms.gle/pi3nuXSCJUQh5Ckm8",
+            title = "Revaluation of Winter Semester Examination 2026 (Backlog Course NEP Syllabus) FY. B. Tech (Sem-I)",
+            rawContent = "Examination Section notification: Revaluation registration active for First Year B.Tech Semester-I NEP Backlog students.",
+            normalizedContent = "revaluation winter semester examination 2026 backlog course nep syllabus fy b tech sem i",
+            contentHash = "f0a1b2c3d4e5f6789012345678abcdef0123456789abcdef0123456789abc03",
+            documentType = "HTML",
+            publishedAt = "2026-10-29T14:10:00Z",
+            extraction = NoticeExtraction(
+                id = "ext-w26-03",
+                noticeId = "not-w26-reval-nep",
+                category = NoticeCategory.EXAMINATION,
+                datesExtracted = listOf("Winter Semester 2026", "2026-11-12 (Submission Deadline)"),
+                deadlinesExtracted = listOf("2026-11-12T23:59:00Z"),
+                eligibilityCriteria = listOf("FY B.Tech NEP Syllabus Backlog Course students"),
+                requiredDocuments = listOf("PRN Number", "Subject Codes list"),
+                actionItems = listOf("Fill form and upload challan before Nov 12"),
+                confidenceScore = 0.97f,
+                isVerifiedByModerator = true
+            )
+        ),
+        Notice(
+            id = "not-w26-photo-nep",
+            collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
+            sourceId = "a7102f00-13c6-431d-83a2-7309e1caa332",
+            canonicalUrl = "https://forms.gle/NdgLQnKkFhGnRzpv7",
+            originalUrl = "https://forms.gle/NdgLQnKkFhGnRzpv7",
+            title = "Photocopy of Winter Semester Examination 2026 (Backlog Course NEP Syllabus) FY. B. Tech (Sem-I)",
+            rawContent = "Official circular: Photocopy of evaluated answer book applications open for FY B.Tech Semester I NEP syllabus.",
+            normalizedContent = "photocopy winter semester examination 2026 backlog course nep syllabus fy b tech sem i",
+            contentHash = "f0a1b2c3d4e5f6789012345678abcdef0123456789abcdef0123456789abc04",
+            documentType = "HTML",
+            publishedAt = "2026-10-29T14:15:00Z",
+            extraction = NoticeExtraction(
+                id = "ext-w26-04",
+                noticeId = "not-w26-photo-nep",
+                category = NoticeCategory.EXAMINATION,
+                datesExtracted = listOf("Winter Semester 2026", "2026-11-12 (Deadline)"),
+                deadlinesExtracted = listOf("2026-11-12T23:59:00Z"),
+                eligibilityCriteria = listOf("FY B.Tech NEP students"),
+                requiredDocuments = listOf("Challan Copy", "Student Identity Card"),
+                actionItems = listOf("Submit online application via portal"),
+                confidenceScore = 0.97f,
+                isVerifiedByModerator = true
+            )
         )
     )
 
