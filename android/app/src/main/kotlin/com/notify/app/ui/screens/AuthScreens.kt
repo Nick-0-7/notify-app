@@ -52,20 +52,13 @@ fun SplashScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Box(
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(id = com.notify.app.R.drawable.app_logo),
+                contentDescription = "Notify Logo",
                 modifier = Modifier
-                    .size(96.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.NotificationsActive,
-                    contentDescription = "Notify Logo",
-                    modifier = Modifier.size(54.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
-            }
+                    .size(108.dp)
+                    .clip(RoundedCornerShape(26.dp))
+            )
             Spacer(modifier = Modifier.height(20.dp))
             Text(
                 text = "NOTIFY",
@@ -116,11 +109,12 @@ fun AuthScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.School,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.primary
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(id = com.notify.app.R.drawable.app_logo),
+                contentDescription = "Notify Logo",
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(18.dp))
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
