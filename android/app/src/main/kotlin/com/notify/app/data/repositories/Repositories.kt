@@ -190,7 +190,7 @@ interface CollegeRepository {
     fun setActiveCollege(college: College)
 }
 
-class CollegeRepositoryImpl : CollegeRepository {
+class CollegeRepositoryImpl(private val forceMock: Boolean = false) : CollegeRepository {
     private val defaultCollege = College(
         id = "col-alpha-1",
         name = "Apex Institute of Technology",
@@ -259,7 +259,7 @@ class CollegeRepositoryImpl : CollegeRepository {
     override val activeCollegeState: StateFlow<College?> = _activeCollege
 
     override suspend fun getColleges(): List<College> = withContext(Dispatchers.IO) {
-        if (SupabaseClientProvider.isConfigured) {
+        if (SupabaseClientProvider.isConfigured && !forceMock) {
             try {
                 SupabaseClientProvider.postgrest.from("colleges").select().decodeList<College>()
             } catch (_: Exception) {
@@ -307,7 +307,7 @@ interface NoticeRepository {
     suspend fun getBookmarks(): List<Bookmark>
 }
 
-class NoticeRepositoryImpl : NoticeRepository {
+class NoticeRepositoryImpl(private val forceMock: Boolean = false) : NoticeRepository {
     private val bookmarkedNoticeIds = mutableSetOf<String>()
 
     private val sampleNotices = mutableListOf(
@@ -598,7 +598,7 @@ class NoticeRepositoryImpl : NoticeRepository {
     }
 
     override suspend fun getNotices(collegeId: String, category: NoticeCategory?, query: String?): List<Notice> = withContext(Dispatchers.IO) {
-        val baseList: List<Notice> = if (SupabaseClientProvider.isConfigured) {
+        val baseList: List<Notice> = if (SupabaseClientProvider.isConfigured && !forceMock) {
             try {
                 val live = SupabaseClientProvider.postgrest.from("notices")
                     .select(io.github.jan.supabase.postgrest.query.Columns.raw("*, notice_extractions(*)")) {
@@ -625,7 +625,7 @@ class NoticeRepositoryImpl : NoticeRepository {
     }
 
     override suspend fun getNoticeById(noticeId: String): Notice? = withContext(Dispatchers.IO) {
-        if (SupabaseClientProvider.isConfigured) {
+        if (SupabaseClientProvider.isConfigured && !forceMock) {
             try {
                 val live = SupabaseClientProvider.postgrest.from("notices")
                     .select(io.github.jan.supabase.postgrest.query.Columns.raw("*, notice_extractions(*)")) {
@@ -790,8 +790,8 @@ interface CommunityRepository {
     suspend fun deletePost(postId: String): Result<Unit>
 }
 
-class CommunityRepositoryImpl : CommunityRepository {
-    // Demo data cleared - starts completely fresh for live students
+class CommunityRepositoryImpl(private val forceMock: Boolean = false) : CommunityRepository {
+    // Local cache + fallback
     private val posts = mutableListOf<StudentPost>()
     private val comments = mutableListOf<Comment>()
 
@@ -830,7 +830,28 @@ class CommunityRepositoryImpl : CommunityRepository {
 
     override suspend fun getPosts(collegeId: String, type: PostType?): List<StudentPost> = withContext(Dispatchers.IO) {
         purgeExpiredPosts()
-        posts.filter { it.collegeId == collegeId && (type == null || it.postType == type) && !isExpired(it.createdAt) }
+        val baseList: List<StudentPost> = if (SupabaseClientProvider.isConfigured && !forceMock) {
+            try {
+                val live = SupabaseClientProvider.postgrest.from("student_posts")
+                    .select(io.github.jan.supabase.postgrest.query.Columns.raw("*, author:profiles!student_posts_author_id_fkey(*)")) {
+                        filter {
+                            eq("college_id", collegeId)
+                            eq("status", "PUBLISHED")
+                            if (type != null) {
+                                eq("post_type", type.name)
+                            }
+                        }
+                        order(column = "created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                    }.decodeList<StudentPost>()
+                if (live.isNotEmpty()) (live + posts).distinctBy { it.id } else posts
+            } catch (e: Exception) {
+                println("[CommunityRepo] Error fetching live student posts from Supabase: ${e.message}")
+                posts
+            }
+        } else {
+            posts
+        }
+        baseList.filter { it.collegeId == collegeId && (type == null || it.postType == type) && !isExpired(it.createdAt) }
     }
 
     override suspend fun createPost(
@@ -844,49 +865,128 @@ class CommunityRepositoryImpl : CommunityRepository {
         val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }
+        val user = if (SupabaseClientProvider.isConfigured && !forceMock) {
+            try { SupabaseClientProvider.auth.currentUserOrNull() } catch (_: Throwable) { null }
+        } else null
+        val curProfile = RepositoryLocator.authRepository.currentUserState.value
+        val authorId = user?.id ?: curProfile?.id ?: "5349d494-f295-4d76-a51b-e4d657544fc2"
+        val authorName = curProfile?.fullName ?: "Student"
+
+        val postId = UUID.randomUUID().toString()
+        val nowIso = isoFormat.format(Date())
+
         val newPost = StudentPost(
-            id = UUID.randomUUID().toString(),
+            id = postId,
             collegeId = collegeId,
-            authorId = "current-user",
+            authorId = authorId,
             title = title.trim(),
             content = content.trim(),
             postType = type,
-            createdAt = isoFormat.format(Date()),
-            author = UserProfile(id = "current-user", fullName = "Student"),
+            status = "PUBLISHED",
+            createdAt = nowIso,
+            author = UserProfile(id = authorId, fullName = authorName),
             attachments = attachments,
             commentsCount = 0,
             reactionsCount = emptyMap()
         )
+
+        if (SupabaseClientProvider.isConfigured && !forceMock) {
+            try {
+                val postPayload = buildJsonObject {
+                    put("id", postId)
+                    put("college_id", collegeId)
+                    put("author_id", authorId)
+                    put("title", title.trim())
+                    put("content", content.trim())
+                    put("post_type", type.name)
+                    put("status", "PUBLISHED")
+                }
+                SupabaseClientProvider.postgrest.from("student_posts").insert(postPayload)
+                println("[CommunityRepo] Inserted post $postId to Supabase")
+            } catch (e: Exception) {
+                println("[CommunityRepo] Failed to upload post to Supabase: ${e.message}")
+            }
+        }
+
         posts.add(0, newPost)
         Result.success(newPost)
     }
 
     override suspend fun getPostById(postId: String): StudentPost? = withContext(Dispatchers.IO) {
         purgeExpiredPosts()
-        posts.find { it.id == postId && !isExpired(it.createdAt) }
+        val cached = posts.find { it.id == postId && !isExpired(it.createdAt) }
+        if (cached != null) return@withContext cached
+
+        if (SupabaseClientProvider.isConfigured && !forceMock) {
+            try {
+                val live = SupabaseClientProvider.postgrest.from("student_posts")
+                    .select(io.github.jan.supabase.postgrest.query.Columns.raw("*, author:profiles!student_posts_author_id_fkey(*)")) {
+                        filter { eq("id", postId) }
+                    }.decodeList<StudentPost>().firstOrNull()
+                if (live != null && !isExpired(live.createdAt)) {
+                    return@withContext live
+                }
+            } catch (_: Exception) {}
+        }
+        null
     }
 
     override suspend fun getComments(postId: String): List<Comment> = withContext(Dispatchers.IO) {
         purgeExpiredPosts()
+        if (SupabaseClientProvider.isConfigured && !forceMock) {
+            try {
+                val liveComments = SupabaseClientProvider.postgrest.from("comments")
+                    .select(io.github.jan.supabase.postgrest.query.Columns.raw("*, author:profiles!comments_author_id_fkey(*)")) {
+                        filter { eq("post_id", postId) }
+                        order(column = "created_at", order = io.github.jan.supabase.postgrest.query.Order.ASCENDING)
+                    }.decodeList<Comment>()
+                if (liveComments.isNotEmpty()) {
+                    return@withContext (liveComments + comments.filter { it.postId == postId }).distinctBy { it.id }
+                }
+            } catch (_: Exception) {}
+        }
         comments.filter { it.postId == postId }
     }
 
     override suspend fun addComment(postId: String, content: String): Result<Comment> = withContext(Dispatchers.IO) {
         purgeExpiredPosts()
-        val targetPost = posts.find { it.id == postId && !isExpired(it.createdAt) }
-            ?: return@withContext Result.failure(Exception("Post not found or expired"))
-
         val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }
+        val user = if (SupabaseClientProvider.isConfigured && !forceMock) {
+            try { SupabaseClientProvider.auth.currentUserOrNull() } catch (_: Throwable) { null }
+        } else null
+        val curProfile = RepositoryLocator.authRepository.currentUserState.value
+        val authorId = user?.id ?: curProfile?.id ?: "5349d494-f295-4d76-a51b-e4d657544fc2"
+        val authorName = curProfile?.fullName ?: "Student"
+
+        val commentId = UUID.randomUUID().toString()
+        val nowIso = isoFormat.format(Date())
+
         val newComment = Comment(
-            id = UUID.randomUUID().toString(),
+            id = commentId,
             postId = postId,
-            authorId = "current-user",
+            authorId = authorId,
             content = content.trim(),
-            createdAt = isoFormat.format(Date()),
-            author = UserProfile(id = "current-user", fullName = "Student")
+            createdAt = nowIso,
+            author = UserProfile(id = authorId, fullName = authorName)
         )
+
+        if (SupabaseClientProvider.isConfigured && !forceMock) {
+            try {
+                val commentPayload = buildJsonObject {
+                    put("id", commentId)
+                    put("post_id", postId)
+                    put("author_id", authorId)
+                    put("content", content.trim())
+                }
+                SupabaseClientProvider.postgrest.from("comments").insert(commentPayload)
+                println("[CommunityRepo] Inserted comment $commentId to Supabase")
+            } catch (e: Exception) {
+                println("[CommunityRepo] Failed to upload comment to Supabase: ${e.message}")
+            }
+        }
+
         comments.add(newComment)
 
         // Increment comments count on parent post
@@ -918,6 +1018,13 @@ class CommunityRepositoryImpl : CommunityRepository {
     }
 
     override suspend fun deletePost(postId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        if (SupabaseClientProvider.isConfigured && !forceMock) {
+            try {
+                SupabaseClientProvider.postgrest.from("student_posts").delete {
+                    filter { eq("id", postId) }
+                }
+            } catch (_: Exception) {}
+        }
         posts.removeAll { it.id == postId }
         comments.removeAll { it.postId == postId }
         Result.success(Unit)

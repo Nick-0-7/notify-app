@@ -37,18 +37,19 @@ fun StudentCommunityScreen(
     var selectedType by remember { mutableStateOf<PostType?>(null) }
     var posts by remember { mutableStateOf<List<StudentPost>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
 
     fun loadPosts() {
         isLoading = true
-        kotlinx.coroutines.GlobalScope.launch {
-            val colId = activeCollege?.id ?: "col-alpha-1"
+        scope.launch {
+            val colId = activeCollege?.id ?: "b0f5e79d-9f32-44fd-a437-94f04a393088"
             posts = communityRepo.getPosts(colId, selectedType)
             isLoading = false
         }
     }
 
     LaunchedEffect(activeCollege, selectedType) {
-        val colId = activeCollege?.id ?: "col-alpha-1"
+        val colId = activeCollege?.id ?: "b0f5e79d-9f32-44fd-a437-94f04a393088"
         posts = communityRepo.getPosts(colId, selectedType)
         isLoading = false
     }
@@ -326,7 +327,7 @@ fun CreatePostScreen(
                                     )
                                 } else emptyList()
 
-                                val colId = activeCollege?.id ?: "col-alpha-1"
+                                val colId = activeCollege?.id ?: "b0f5e79d-9f32-44fd-a437-94f04a393088"
                                 val res = communityRepo.createPost(colId, title, content, selectedType, attachments)
                                 isSubmitting = false
                                 if (res.isSuccess) {

@@ -30,7 +30,18 @@ object SupabaseClientProvider {
                     supabaseKey = supabaseAnonKey
                 ) {
                     httpEngine = OkHttp.create()
-                    install(Auth)
+                    install(Auth) {
+                        sessionManager = try {
+                            io.github.jan.supabase.auth.SettingsSessionManager()
+                        } catch (_: Throwable) {
+                            io.github.jan.supabase.auth.MemorySessionManager()
+                        }
+                        codeVerifierCache = try {
+                            io.github.jan.supabase.auth.SettingsCodeVerifierCache()
+                        } catch (_: Throwable) {
+                            io.github.jan.supabase.auth.MemoryCodeVerifierCache()
+                        }
+                    }
                     install(Postgrest)
                     install(Storage)
                     install(Realtime)

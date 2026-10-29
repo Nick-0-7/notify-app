@@ -4,9 +4,27 @@ import com.notify.app.data.repositories.*
 import com.notify.app.domain.models.*
 import junit.framework.TestCase.*
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Before
 import org.junit.Test
 
 class RepositoriesUnitTest {
+
+    private val testDispatcher = StandardTestDispatcher()
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
 
     @Test
     fun testAuthSignInAndProfileUpdate() = runTest {
@@ -31,7 +49,7 @@ class RepositoriesUnitTest {
 
     @Test
     fun testCollegeRepository() = runTest {
-        val collegeRepo = CollegeRepositoryImpl()
+        val collegeRepo = CollegeRepositoryImpl(forceMock = true)
 
         val colleges = collegeRepo.getColleges()
         assertTrue(colleges.isNotEmpty())
@@ -46,7 +64,7 @@ class RepositoriesUnitTest {
 
     @Test
     fun testNoticeRepositoryFilteringAndBookmarks() = runTest {
-        val noticeRepo = NoticeRepositoryImpl()
+        val noticeRepo = NoticeRepositoryImpl(forceMock = true)
 
         val allNotices = noticeRepo.getNotices("col-alpha-1")
         assertEquals(3, allNotices.size)
@@ -92,7 +110,7 @@ class RepositoriesUnitTest {
 
     @Test
     fun testCommunityPostAndComments() = runTest {
-        val communityRepo = CommunityRepositoryImpl()
+        val communityRepo = CommunityRepositoryImpl(forceMock = true)
 
         // 1. Initial state should be clean (demo data removed)
         val initialPosts = communityRepo.getPosts("col-alpha-1")
@@ -123,7 +141,7 @@ class RepositoriesUnitTest {
 
     @Test
     fun testCommunityExpiredPostAutoDelete() = runTest {
-        val communityRepo = CommunityRepositoryImpl()
+        val communityRepo = CommunityRepositoryImpl(forceMock = true)
         val nonExistentPost = communityRepo.getPostById("non-existent-id")
         assertNull(nonExistentPost)
     }
