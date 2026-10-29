@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 from pydantic import BaseModel
 
 NOTICE_KEYWORD_PATTERNS = re.compile(
-    r"\b(notice|circular|announcement|examination|exam|timetable|result|placement|scholarship|admission|recruitment|seminar|order)\b",
+    r"\b(notice|circular|announcement|examination|exam|timetable|result|placement|scholarship|admission|recruitment|seminar|order|revaluation|photocopy|backlog|re-examination|remedial|hallticket)\b",
     re.IGNORECASE
 )
 

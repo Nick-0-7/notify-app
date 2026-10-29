@@ -117,10 +117,27 @@ async def process_source(source: dict):
                     extraction=extraction
                 )
 
-            # Process discovered notice links (up to 5 recent links to maintain bounded execution)
-            pdf_links = [l for l in parsed_html.discovered_links if l.is_pdf]
-            for link in pdf_links[:5]:
-                await process_pdf_notice(college_id, source_id, link.url)
+            # Process discovered notice links (PDFs and direct notice/application links)
+            for link in parsed_html.discovered_links[:20]:
+                if link.is_pdf:
+                    await process_pdf_notice(college_id, source_id, link.url)
+                elif len(link.text) > 15:
+                    # Ingest direct notice / Google form / Portal application link
+                    link_norm = normalize_text(f"{link.text} {link.url}")
+                    link_hash = calculate_content_hash(link_norm)
+                    link_extraction = extract_notice_metadata(link.text, link.text)
+                    db.save_notice(
+                        college_id=college_id,
+                        source_id=source_id,
+                        canonical_url=canonicalize_url(link.url),
+                        original_url=link.url,
+                        title=link.text,
+                        raw_content=f"{link.text}\nDirect Application/Document Link: {link.url}",
+                        normalized_content=link_norm,
+                        content_hash=link_hash,
+                        document_type="HTML",
+                        extraction=link_extraction
+                    )
 
         db.update_source_status(source_id, success=True)
         logger.info(f"Source '{source.get('label')}' processed successfully.")
