@@ -78,17 +78,18 @@ object UpdateManager {
                 val downloadUrl = json.optString("downloadUrl", "")
 
                 val isNewer = remoteCode > currentCode || isVersionGreater(remoteName, currentName)
-
-                return@withContext AppUpdateInfo(
-                    versionCode = remoteCode,
-                    versionName = remoteName,
-                    title = title,
-                    releaseNotes = notes,
-                    downloadUrl = downloadUrl,
-                    isUpdateAvailable = isNewer,
-                    currentVersionName = currentName,
-                    currentVersionCode = currentCode
-                )
+                if (isNewer) {
+                    return@withContext AppUpdateInfo(
+                        versionCode = remoteCode,
+                        versionName = remoteName,
+                        title = title,
+                        releaseNotes = notes,
+                        downloadUrl = downloadUrl,
+                        isUpdateAvailable = true,
+                        currentVersionName = currentName,
+                        currentVersionCode = currentCode
+                    )
+                }
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed fetching version.json: ${e.message}")
