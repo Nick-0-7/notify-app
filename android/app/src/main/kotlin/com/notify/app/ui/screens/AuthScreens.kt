@@ -125,11 +125,11 @@ fun AuthScreen(
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = if (isSignUp) "Create Your Account" else "Welcome Back",
+                text = if (isSignUp) "Create Your Account" else "Welcome to Notify",
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
             )
             Text(
-                text = if (isSignUp) "Connect with your college announcements and student community" else "Sign in to access your notices and campus feed",
+                text = if (isSignUp) "Connect with your college announcements and student community" else "Sign in to join student discussions and get alerts, or decline and continue as a guest.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -323,12 +323,15 @@ fun AuthScreen(
 
             OutlinedButton(
                 onClick = onSkipToDashboard,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Icon(Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Explore Demo Campus")
+                Icon(Icons.Default.PersonOutline, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "Decline & Continue as Guest",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
+                )
             }
         }
     }

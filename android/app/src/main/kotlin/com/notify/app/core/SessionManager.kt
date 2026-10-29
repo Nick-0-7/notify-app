@@ -105,4 +105,19 @@ object SessionManager {
             emptyList()
         }
     }
+
+    private const val KEY_HAS_SEEN_ONBOARDING = "has_seen_onboarding"
+
+    fun setHasSeenOnboarding(seen: Boolean = true, context: Context? = null) {
+        val ctx = context ?: appContext ?: return
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(KEY_HAS_SEEN_ONBOARDING, seen).apply()
+        Log.d(TAG, "Set hasSeenOnboarding = $seen")
+    }
+
+    fun hasSeenOnboarding(context: Context? = null): Boolean {
+        val ctx = context ?: appContext ?: return false
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_HAS_SEEN_ONBOARDING, false)
+    }
 }

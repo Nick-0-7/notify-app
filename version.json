@@ -1,7 +1,7 @@
 {
-  "versionCode": 10,
-  "versionName": "1.0.9",
-  "title": "Notify v1.0.9",
-  "releaseNotes": "- Public access to published Student Hub messages for all friends and students\n- Automatic active membership registration on sign-in\n- Explicit sign-in prompt before creating posts\n- Cloud error handling and cross-device message synchronization",
-  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.9/Notify-v1.0.apk"
+  "versionCode": 11,
+  "versionName": "1.0.10",
+  "title": "Notify v1.0.10",
+  "releaseNotes": "- First-time launch welcome prompt asking user to sign in or decline and continue as guest\n- Respects user choice so subsequent opens go straight to the app\n- Profile tab quick sign-in button for guests\n- Full cross-device Student Hub and college notice synchronization",
+  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.10/Notify-v1.0.apk"
 }

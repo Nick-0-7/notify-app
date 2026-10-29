@@ -67,14 +67,26 @@ fun AppNavigation(
             is Screen.Splash -> {
                 SplashScreen(
                     onNavigateNext = {
-                        currentScreen = Screen.Main
+                        val hasSeenOnboarding = com.notify.app.core.SessionManager.hasSeenOnboarding()
+                        val savedProfile = com.notify.app.core.SessionManager.getSavedProfile()
+                        if (!hasSeenOnboarding && savedProfile == null) {
+                            currentScreen = Screen.Auth
+                        } else {
+                            currentScreen = Screen.Main
+                        }
                     }
                 )
             }
             is Screen.Auth -> {
                 AuthScreen(
-                    onAuthSuccess = { currentScreen = Screen.Main },
-                    onSkipToDashboard = { currentScreen = Screen.Main }
+                    onAuthSuccess = {
+                        com.notify.app.core.SessionManager.setHasSeenOnboarding(true)
+                        currentScreen = Screen.Main
+                    },
+                    onSkipToDashboard = {
+                        com.notify.app.core.SessionManager.setHasSeenOnboarding(true)
+                        currentScreen = Screen.Main
+                    }
                 )
             }
             is Screen.CollegeSelect -> {

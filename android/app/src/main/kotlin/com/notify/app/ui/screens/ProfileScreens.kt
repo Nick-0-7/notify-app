@@ -98,28 +98,45 @@ fun UserProfileScreen(
                     }
                     Spacer(modifier = Modifier.height(10.dp))
 
+                    val isGuest = currentUser == null || currentUser?.id?.startsWith("mock-") == true || currentUser?.id?.startsWith("pending-") == true
+
                     if (!isEditing) {
                         Text(
-                            text = currentUser?.fullName ?: "Student",
+                            text = if (isGuest) "Guest Student" else (currentUser?.fullName ?: "Student"),
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = currentUser?.bio ?: "Computer Engineering",
+                            text = if (isGuest) "Not signed in • Browsing SITCOE notices" else (currentUser?.bio ?: "Computer Engineering"),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(10.dp))
-                        OutlinedButton(
-                            onClick = {
-                                nameInput = currentUser?.fullName ?: ""
-                                bioInput = currentUser?.bio ?: ""
-                                isEditing = true
-                            },
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Edit Profile")
+                        if (isGuest) {
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        authRepo.signInWithGoogle()
+                                    }
+                                },
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(Icons.Default.Login, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Sign In with Google")
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = {
+                                    nameInput = currentUser?.fullName ?: ""
+                                    bioInput = currentUser?.bio ?: ""
+                                    isEditing = true
+                                },
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Edit Profile")
+                            }
                         }
                     } else {
                         OutlinedTextField(
@@ -299,21 +316,39 @@ fun UserProfileScreen(
                 )
             }
 
-            // Sign Out Button
-            Button(
-                onClick = {
-                    scope.launch {
-                        authRepo.signOut()
-                        onSignOut()
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Sign Out")
+            // Sign Out or Sign In Button
+            val isGuest = currentUser == null || currentUser?.id?.startsWith("mock-") == true || currentUser?.id?.startsWith("pending-") == true
+            if (isGuest) {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            authRepo.signInWithGoogle()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                ) {
+                    Icon(Icons.Default.Login, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Sign In with Google")
+                }
+            } else {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            authRepo.signOut()
+                            onSignOut()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                ) {
+                    Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Sign Out")
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
