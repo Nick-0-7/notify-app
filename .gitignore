@@ -48,6 +48,8 @@ captures/
 .cxx/
 local.properties
 *.keystore
+*.apk
+*.aab
 
 # IDE & Editor
 .idea/
