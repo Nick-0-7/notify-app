@@ -866,8 +866,10 @@ interface CommunityRepository {
 }
 
 class CommunityRepositoryImpl(private val forceMock: Boolean = false) : CommunityRepository {
-    // Local cache + fallback
-    private val posts = mutableListOf<StudentPost>()
+    // Persistent local cache + fallback
+    private val posts = mutableListOf<StudentPost>().apply {
+        addAll(com.notify.app.core.SessionManager.getCachedPosts())
+    }
     private val comments = mutableListOf<Comment>()
 
     private fun isExpired(createdAtStr: String?): Boolean {
@@ -876,15 +878,10 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
     }
 
     private fun purgeExpiredPosts() {
-        val expiredIds = posts.filter { isExpired(it.createdAt) }.map { it.id }.toSet()
-        if (expiredIds.isNotEmpty()) {
-            posts.removeAll { it.id in expiredIds }
-            comments.removeAll { it.postId in expiredIds }
-        }
+        // Posts do not expire
     }
 
     override suspend fun getPosts(collegeId: String, type: PostType?): List<StudentPost> = withContext(Dispatchers.IO) {
-        purgeExpiredPosts()
         val baseList: List<StudentPost> = if (SupabaseClientProvider.isConfigured && !forceMock) {
             try {
                 val live = SupabaseClientProvider.postgrest.from("student_posts")
@@ -901,16 +898,30 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
                 if (live.isNotEmpty()) {
                     posts.clear()
                     posts.addAll(live)
+                    com.notify.app.core.SessionManager.saveCachedPosts(posts = live)
                     live
-                } else posts
+                } else {
+                    val cached = com.notify.app.core.SessionManager.getCachedPosts()
+                    if (cached.isNotEmpty()) {
+                        posts.clear()
+                        posts.addAll(cached)
+                        cached
+                    } else posts
+                }
             } catch (e: Exception) {
                 println("[CommunityRepo] Error fetching live student posts from Supabase: ${e.message}")
-                posts
+                val cached = com.notify.app.core.SessionManager.getCachedPosts()
+                if (cached.isNotEmpty()) {
+                    posts.clear()
+                    posts.addAll(cached)
+                    cached
+                } else posts
             }
         } else {
-            posts
+            val cached = com.notify.app.core.SessionManager.getCachedPosts()
+            if (cached.isNotEmpty()) cached else posts
         }
-        baseList.filter { it.collegeId == collegeId && (type == null || it.postType == type) && !isExpired(it.createdAt) }
+        baseList.filter { it.collegeId == collegeId && (type == null || it.postType == type) }
     }
 
     override suspend fun createPost(
@@ -968,6 +979,7 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
         }
 
         posts.add(0, newPost)
+        com.notify.app.core.SessionManager.saveCachedPosts(posts = posts)
         Result.success(newPost)
     }
 

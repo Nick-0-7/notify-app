@@ -1,7 +1,7 @@
 {
-  "versionCode": 7,
-  "versionName": "1.0.6",
-  "title": "Notify v1.0.6",
-  "releaseNotes": "• Permanent Student Hub posts (removed 7-day expiration prune)\n• Synced college membership with Supabase for all active users\n• Persistent user login across app close and restarts\n• Live community feed sync across peer devices",
-  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.6/Notify-v1.0.apk"
+  "versionCode": 8,
+  "versionName": "1.0.7",
+  "title": "Notify v1.0.7",
+  "releaseNotes": "• Offline & Persistent local cache for all Student Hub messages\n• Robust JSON serialization preventing query crashes\n• Automatic college membership synchronization\n• Messages persist indefinitely across app closes and reboots",
+  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.7/Notify-v1.0.apk"
 }

@@ -102,7 +102,9 @@ data class UserProfile(
     @SerialName("full_name") val fullName: String,
     @SerialName("avatar_url") val avatarUrl: String? = null,
     val bio: String? = null,
-    @SerialName("is_system_admin") val isSystemAdmin: Boolean = false
+    @SerialName("is_system_admin") val isSystemAdmin: Boolean = false,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null
 )
 
 @Serializable

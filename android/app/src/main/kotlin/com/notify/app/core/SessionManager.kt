@@ -74,4 +74,35 @@ object SessionManager {
         val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return prefs.getString(KEY_ACTIVE_COLLEGE_ID, null)
     }
+
+    private const val KEY_CACHED_POSTS_JSON = "cached_posts_json"
+    private val jsonHelper = kotlinx.serialization.json.Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        coerceInputValues = true
+    }
+
+    fun saveCachedPosts(context: Context? = null, posts: List<com.notify.app.domain.models.StudentPost>) {
+        val ctx = context ?: appContext ?: return
+        try {
+            val encoded = jsonHelper.encodeToString(kotlinx.serialization.builtins.ListSerializer(com.notify.app.domain.models.StudentPost.serializer()), posts)
+            val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putString(KEY_CACHED_POSTS_JSON, encoded).apply()
+            Log.d(TAG, "Cached ${posts.size} student posts locally")
+        } catch (e: Exception) {
+            Log.w(TAG, "Error caching posts: ${e.message}")
+        }
+    }
+
+    fun getCachedPosts(context: Context? = null): List<com.notify.app.domain.models.StudentPost> {
+        val ctx = context ?: appContext ?: return emptyList()
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val raw = prefs.getString(KEY_CACHED_POSTS_JSON, null) ?: return emptyList()
+        return try {
+            jsonHelper.decodeFromString(kotlinx.serialization.builtins.ListSerializer(com.notify.app.domain.models.StudentPost.serializer()), raw)
+        } catch (e: Exception) {
+            Log.w(TAG, "Error restoring cached posts: ${e.message}")
+            emptyList()
+        }
+    }
 }

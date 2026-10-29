@@ -30,6 +30,14 @@ object SupabaseClientProvider {
                     supabaseKey = supabaseAnonKey
                 ) {
                     httpEngine = OkHttp.create()
+                    defaultSerializer = io.github.jan.supabase.serializer.KotlinXSerializer(
+                        kotlinx.serialization.json.Json {
+                            ignoreUnknownKeys = true
+                            isLenient = true
+                            coerceInputValues = true
+                            encodeDefaults = true
+                        }
+                    )
                     install(Auth) {
                         scheme = "notify"
                         host = "login-callback"
