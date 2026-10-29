@@ -358,15 +358,22 @@ fun NoticeDetailScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    TextButton(
+                    val isFormLink = currentNotice.originalUrl.contains("forms.gle") || currentNotice.originalUrl.contains("docs.google.com/forms")
+                    FilledTonalButton(
                         onClick = {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(currentNotice.originalUrl))
                             context.startActivity(intent)
-                        }
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Original Web Page")
+                        Icon(
+                            if (isFormLink) Icons.Default.Assignment else Icons.Default.OpenInNew,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (isFormLink) "Open Form" else "Original Doc")
                     }
                 }
 
@@ -389,6 +396,31 @@ fun NoticeDetailScreen(
                             }
                             ext?.deadlinesExtracted?.forEach { deadline ->
                                 Text("• Final Deadline: $deadline", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold)
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = {
+                                    val calendarIntent = Intent(Intent.ACTION_INSERT).apply {
+                                        data = android.provider.CalendarContract.Events.CONTENT_URI
+                                        putExtra(android.provider.CalendarContract.Events.TITLE, currentNotice.title)
+                                        val dlSummary = (ext?.deadlinesExtracted ?: emptyList()).joinToString("\n")
+                                        putExtra(
+                                            android.provider.CalendarContract.Events.DESCRIPTION,
+                                            "College Notice Reminder:\n$dlSummary\n\nLink: ${currentNotice.originalUrl}"
+                                        )
+                                        putExtra(android.provider.CalendarContract.EXTRA_EVENT_ALL_DAY, true)
+                                    }
+                                    try {
+                                        context.startActivity(calendarIntent)
+                                    } catch (_: Exception) {}
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.EventAvailable, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Add Deadline to Google Calendar")
                             }
                         }
                     }

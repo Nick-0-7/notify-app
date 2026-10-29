@@ -53,25 +53,44 @@ Write-Output $ocrResult.Text
 
 
 def recognize_image_file(image_path: str) -> str:
-    """Run OCR on a single image file via native Windows.Media.Ocr."""
-    _ensure_ps_script()
-    try:
-        cmd = [
-            "powershell.exe",
-            "-NoProfile",
-            "-ExecutionPolicy", "Bypass",
-            "-File", PS_OCR_SCRIPT,
-            "-ImagePath", image_path
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, encoding="utf-8")
-        if result.returncode == 0:
-            return result.stdout.strip()
-        else:
-            logger.warning(f"OCR PowerShell error: {result.stderr.strip()}")
+    """
+    Run OCR on a single image file:
+    1. Attempts tesseract CLI if available (Linux / Ubuntu CI / Windows with Tesseract)
+    2. Falls back to native Windows.Media.Ocr on Windows hosts
+    """
+    import shutil
+    tesseract_bin = shutil.which("tesseract")
+    if tesseract_bin:
+        try:
+            cmd = [tesseract_bin, image_path, "stdout", "-l", "eng"]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, encoding="utf-8")
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+        except Exception as te:
+            logger.debug(f"Tesseract CLI attempt failed: {te}")
+
+    # Fallback to Windows native OCR if on Windows
+    if os.name == "nt":
+        _ensure_ps_script()
+        try:
+            cmd = [
+                "powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy", "Bypass",
+                "-File", PS_OCR_SCRIPT,
+                "-ImagePath", image_path
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, encoding="utf-8")
+            if result.returncode == 0:
+                return result.stdout.strip()
+            else:
+                logger.warning(f"OCR PowerShell error: {result.stderr.strip()}")
+                return ""
+        except Exception as e:
+            logger.error(f"Error executing OCR on image {image_path}: {e}")
             return ""
-    except Exception as e:
-        logger.error(f"Error executing OCR on image {image_path}: {e}")
-        return ""
+
+    return ""
 
 
 def extract_text_from_scanned_pdf(pdf_bytes: bytes, max_pages: int = 5) -> str:
