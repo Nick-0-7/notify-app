@@ -1,7 +1,7 @@
 {
-  "versionCode": 6,
-  "versionName": "1.0.5",
-  "title": "Notify v1.0.5",
-  "releaseNotes": "• Persistent user login across app close and restarts\n• Persistent Student Hub messages & live sync\n• Active college persistence (SITCOE)\n• Google Sign-In redirect and stability fixes",
-  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.5/Notify-v1.0.apk"
+  "versionCode": 7,
+  "versionName": "1.0.6",
+  "title": "Notify v1.0.6",
+  "releaseNotes": "• Permanent Student Hub posts (removed 7-day expiration prune)\n• Synced college membership with Supabase for all active users\n• Persistent user login across app close and restarts\n• Live community feed sync across peer devices",
+  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.6/Notify-v1.0.apk"
 }

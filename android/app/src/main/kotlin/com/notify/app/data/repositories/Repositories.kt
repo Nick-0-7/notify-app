@@ -333,15 +333,32 @@ class CollegeRepositoryImpl(private val forceMock: Boolean = false) : CollegeRep
     override suspend fun joinCollege(collegeId: String, studentId: String): Result<CollegeMembership> = withContext(Dispatchers.IO) {
         val col = sampleColleges.find { it.id == collegeId }
             ?: return@withContext Result.failure(IllegalArgumentException("College not found"))
+        val curUser = RepositoryLocator.authRepository.currentUserState.value
+        val actualUid = curUser?.id ?: "f8ba1cd8-d42b-4132-829b-e8f6dc453259"
         val mem = CollegeMembership(
             id = UUID.randomUUID().toString(),
             collegeId = collegeId,
-            userId = "mock-user-1",
+            userId = actualUid,
             role = MembershipRole.STUDENT,
             status = MembershipStatus.ACTIVE,
             studentIdNumber = studentId,
             college = col
         )
+        if (SupabaseClientProvider.isConfigured && !forceMock) {
+            try {
+                val payload = buildJsonObject {
+                    put("id", mem.id)
+                    put("college_id", collegeId)
+                    put("user_id", actualUid)
+                    put("role", "student")
+                    put("status", "active")
+                    put("student_id_number", studentId)
+                }
+                SupabaseClientProvider.postgrest.from("college_memberships").insert(payload)
+            } catch (e: Exception) {
+                android.util.Log.w("CollegeRepo", "Error syncing college membership: ${e.message}")
+            }
+        }
         memberships.add(mem)
         _activeCollege.value = col
         com.notify.app.core.SessionManager.saveActiveCollegeId(collegeId = col.id)
@@ -854,27 +871,7 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
     private val comments = mutableListOf<Comment>()
 
     private fun isExpired(createdAtStr: String?): Boolean {
-        if (createdAtStr.isNullOrBlank()) return false
-        if (createdAtStr.equals("Just now", ignoreCase = true)) return false
-        val formats = listOf(
-            "yyyy-MM-dd'T'HH:mm:ss'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
-            "yyyy-MM-dd'T'HH:mm:ssXXX",
-            "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd"
-        )
-        for (fmt in formats) {
-            try {
-                val sdf = SimpleDateFormat(fmt, Locale.US).apply {
-                    timeZone = TimeZone.getTimeZone("UTC")
-                }
-                val parsed = sdf.parse(createdAtStr)
-                if (parsed != null) {
-                    val oneWeekMs = 7L * 24 * 60 * 60 * 1000L // 7 days (1 week)
-                    return (System.currentTimeMillis() - parsed.time) > oneWeekMs
-                }
-            } catch (_: Exception) {}
-        }
+        // Keep all student posts permanently in the community feed
         return false
     }
 
