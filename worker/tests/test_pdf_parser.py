@@ -1,25 +1,22 @@
-import io
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
+import pymupdf
 from worker.pdf_parser import parse_pdf_document
 
 
 def create_test_pdf_bytes(text: str) -> bytes:
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-    c.setTitle("Examination Notice Circular")
-    c.drawString(100, 750, text)
-    c.save()
-    return buffer.getvalue()
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.insert_text((100, 100), text)
+    pdf_bytes = doc.tobytes()
+    doc.close()
+    return pdf_bytes
 
 
 def create_empty_scanned_pdf_bytes() -> bytes:
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-    # Empty page with no text (simulates scanned image PDF)
-    c.showPage()
-    c.save()
-    return buffer.getvalue()
+    doc = pymupdf.open()
+    doc.new_page()  # Empty page with no text (simulates scanned image PDF)
+    pdf_bytes = doc.tobytes()
+    doc.close()
+    return pdf_bytes
 
 
 def test_pdf_selectable_text_extraction():
