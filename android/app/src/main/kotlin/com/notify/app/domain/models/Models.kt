@@ -134,21 +134,21 @@ data class NoticeSource(
 @Serializable
 data class Notice(
     val id: String,
-    @SerialName("college_id") val collegeId: String,
-    @SerialName("source_id") val sourceId: String,
-    @SerialName("canonical_url") val canonicalUrl: String,
-    @SerialName("original_url") val originalUrl: String,
-    val title: String,
-    @SerialName("raw_content") val rawContent: String,
-    @SerialName("normalized_content") val normalizedContent: String,
-    @SerialName("content_hash") val contentHash: String,
+    @SerialName("college_id") val collegeId: String = "",
+    @SerialName("source_id") val sourceId: String = "",
+    @SerialName("canonical_url") val canonicalUrl: String = "",
+    @SerialName("original_url") val originalUrl: String = "",
+    val title: String = "",
+    @SerialName("raw_content") val rawContent: String = "",
+    @SerialName("normalized_content") val normalizedContent: String = "",
+    @SerialName("content_hash") val contentHash: String = "",
     @SerialName("document_type") val documentType: String = "HTML",
     @SerialName("published_at") val publishedAt: String? = null,
     @SerialName("first_seen_at") val firstSeenAt: String? = null,
     @SerialName("last_checked_at") val lastCheckedAt: String? = null,
     @SerialName("is_published") val isPublished: Boolean = true,
     @SerialName("version_count") val versionCount: Int = 1,
-    val extraction: NoticeExtraction? = null
+    @SerialName("notice_extractions") val extraction: NoticeExtraction? = null
 )
 
 @Serializable

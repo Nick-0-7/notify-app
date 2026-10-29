@@ -589,18 +589,35 @@ class NoticeRepositoryImpl : NoticeRepository {
     )
 
     private fun isRecent(notice: Notice): Boolean {
-        // Strict freshness filter: Reject notices older than 6 months or referencing obsolete years (2024 or earlier)
-        val obsoleteRegex = Regex("""\b(202[0-4]|201\d)\b""")
-        if (obsoleteRegex.containsMatchIn(notice.title) && !notice.title.contains("2026")) return false
-        val pub = notice.publishedAt ?: return true
+        // Freshness filter: Keep notices from recent academic cycles (2025-2026), reject 2023 or older
+        val obsoleteRegex = Regex("""\b(202[0-3]|201\d)\b""")
+        if (obsoleteRegex.containsMatchIn(notice.title) && !notice.title.contains("2026") && !notice.title.contains("2025")) return false
+        val pub = notice.publishedAt ?: notice.firstSeenAt ?: return true
         val year = pub.take(4).toIntOrNull() ?: return true
-        return year >= 2026
+        return year >= 2025
     }
 
     override suspend fun getNotices(collegeId: String, category: NoticeCategory?, query: String?): List<Notice> = withContext(Dispatchers.IO) {
-        sampleNotices.filter { notice ->
+        val baseList: List<Notice> = if (SupabaseClientProvider.isConfigured) {
+            try {
+                val live = SupabaseClientProvider.postgrest.from("notices")
+                    .select(io.github.jan.supabase.postgrest.query.Columns.raw("*, notice_extractions(*)")) {
+                        filter {
+                            eq("college_id", collegeId)
+                            eq("is_published", true)
+                        }
+                    }.decodeList<Notice>()
+                if (live.isNotEmpty()) (live + sampleNotices).distinctBy { it.id } else sampleNotices
+            } catch (_: Exception) {
+                sampleNotices
+            }
+        } else {
+            sampleNotices
+        }
+
+        baseList.filter { notice ->
             val matchRecent = isRecent(notice)
-            val matchCollege = notice.collegeId == collegeId
+            val matchCollege = notice.collegeId == collegeId || (collegeId == "col-alpha-1" && notice.collegeId == "col-alpha-1")
             val matchCategory = category == null || notice.extraction?.category == category
             val matchQuery = query.isNullOrBlank() || notice.title.contains(query, ignoreCase = true) || notice.rawContent.contains(query, ignoreCase = true)
             matchRecent && matchCollege && matchCategory && matchQuery
@@ -608,6 +625,17 @@ class NoticeRepositoryImpl : NoticeRepository {
     }
 
     override suspend fun getNoticeById(noticeId: String): Notice? = withContext(Dispatchers.IO) {
+        if (SupabaseClientProvider.isConfigured) {
+            try {
+                val live = SupabaseClientProvider.postgrest.from("notices")
+                    .select(io.github.jan.supabase.postgrest.query.Columns.raw("*, notice_extractions(*)")) {
+                        filter {
+                            eq("id", noticeId)
+                        }
+                    }.decodeList<Notice>()
+                if (live.isNotEmpty()) return@withContext live.first()
+            } catch (_: Exception) {}
+        }
         sampleNotices.find { it.id == noticeId }
     }
 
