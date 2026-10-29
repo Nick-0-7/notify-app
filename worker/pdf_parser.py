@@ -90,6 +90,23 @@ def parse_pdf_document(pdf_bytes: bytes, original_url: str) -> ParsedPDF:
     requires_ocr = False
     if page_count > 0 and (total_chars / max(1, page_count)) < 25:
         requires_ocr = True
+        try:
+            from worker.ocr import extract_text_from_scanned_pdf
+            ocr_text = extract_text_from_scanned_pdf(pdf_bytes, max_pages=5)
+            if ocr_text and len(ocr_text.strip()) > 30:
+                full_text = ocr_text
+                requires_ocr = False
+                pages_text = [p.strip() for p in ocr_text.split("--- Page Break ---") if p.strip()]
+                # Check for a clearer title in the OCR header
+                for line in ocr_text.splitlines()[:12]:
+                    l = line.strip()
+                    if any(k in l.lower() for k in ["examination", "revaluation", "photocopy", "schedule", "timetable", "circular", "notice"]) and len(l) > 10:
+                        if not any(ign in l.lower() for ign in ["approved by", "autonomous", "trust's", "affiliated"]):
+                            title = l[:120]
+                            break
+        except Exception:
+            pass
+
         if not full_text:
             full_text = "[Notice is a scanned document/image. Requires OCR for full text extraction.]"
 

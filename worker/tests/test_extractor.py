@@ -38,3 +38,24 @@ def test_extractor_no_hallucinated_dates():
     assert len(meta.dates_extracted) == 0
     assert len(meta.deadlines_extracted) == 0
     assert meta.category == "general"
+
+
+def test_extractor_schedule_and_fee_deadlines():
+    from worker.extractor import generate_notification_body
+    title = "Winter Semester Examination 2026 FY M Tech Form Filling"
+    content = (
+        "Examination Form Filling Dates: 12th October 2026 to 14th October 2026 (Without Late Fee). "
+        "15th October 2026 to 16th October 2026 (Late Fee). "
+        "17th October 2026 Examination Fees (Super Late Fee). "
+        "Apply through examination ERP before closing date."
+    )
+    meta = extract_notice_metadata(title, content)
+    assert meta.category == "examination"
+    assert any("14th October 2026" in dl for dl in meta.deadlines_extracted)
+    assert any("16th October 2026" in dl for dl in meta.deadlines_extracted)
+    assert any("17th October 2026" in dl for dl in meta.deadlines_extracted)
+
+    notif_body = generate_notification_body(title, content, meta)
+    assert "Deadline:" in notif_body
+    assert "14th October 2026" in notif_body or "16th October 2026" in notif_body or "17th October 2026" in notif_body
+

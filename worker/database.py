@@ -3,7 +3,7 @@ import logging
 import uuid
 from typing import List, Dict, Any, Optional
 from worker.config import settings
-from worker.extractor import ExtractedMetadata
+from worker.extractor import ExtractedMetadata, generate_notification_body
 from worker.notifier import send_notice_push_notification
 
 logger = logging.getLogger("notify.database")
@@ -232,11 +232,12 @@ class DatabaseClient:
                 tokens = [r["token"] for r in (tokens_res.data or []) if r.get("token")]
 
                 is_high_priority = extraction.category in ("examination", "placement") or bool(extraction.deadlines_extracted)
+                notif_body = generate_notification_body(title, raw_content, extraction)
                 send_notice_push_notification(
                     device_tokens=tokens,
                     notice_id=notice_id,
                     title=f"[{extraction.category.upper()}] {title[:60]}",
-                    body=raw_content[:140] + "...",
+                    body=notif_body,
                     category=extraction.category,
                     is_high_priority=is_high_priority
                 )
