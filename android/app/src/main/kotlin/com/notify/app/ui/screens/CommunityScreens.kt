@@ -342,14 +342,6 @@ fun CreatePostScreen(
                             isSubmitting = true
                             errorMessage = null
                             scope.launch {
-                                val curUser = RepositoryLocator.authRepository.currentUserState.value
-                                if (com.notify.app.core.SupabaseClientProvider.isConfigured &&
-                                    (curUser == null || curUser.id.startsWith("mock-") || curUser.id.startsWith("pending-"))) {
-                                    isSubmitting = false
-                                    errorMessage = "Please sign in with Google in the Profile tab before posting so your friends can see your message."
-                                    return@launch
-                                }
-
                                 val attachments = if (attachedFileName != null) {
                                     listOf(
                                         PostAttachment(

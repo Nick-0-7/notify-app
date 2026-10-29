@@ -1,7 +1,7 @@
 {
-  "versionCode": 11,
-  "versionName": "1.0.10",
-  "title": "Notify v1.0.10",
-  "releaseNotes": "- First-time launch welcome prompt asking user to sign in or decline and continue as guest\n- Respects user choice so subsequent opens go straight to the app\n- Profile tab quick sign-in button for guests\n- Full cross-device Student Hub and college notice synchronization",
-  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.10/Notify-v1.0.apk"
+  "versionCode": 12,
+  "versionName": "1.0.11",
+  "title": "Notify v1.0.11",
+  "releaseNotes": "- Fixed Supabase Row-Level Security policy for student posts and comments\n- Open posting and browsing for both signed-in Google students and guest mode\n- Restored full notice and community feed sync across all devices",
+  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.11/Notify-v1.0.apk"
 }

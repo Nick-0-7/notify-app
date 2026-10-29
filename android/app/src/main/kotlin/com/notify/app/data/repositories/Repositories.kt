@@ -958,7 +958,12 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
             try { SupabaseClientProvider.auth.currentUserOrNull() } catch (_: Throwable) { null }
         } else null
         val curProfile = RepositoryLocator.authRepository.currentUserState.value
-        val authorId = user?.id ?: curProfile?.id ?: "5349d494-f295-4d76-a51b-e4d657544fc2"
+        val rawAuthorId = user?.id ?: curProfile?.id
+        val authorId = if (!rawAuthorId.isNullOrBlank() && try { UUID.fromString(rawAuthorId); true } catch (_: Exception) { false }) {
+            rawAuthorId
+        } else {
+            "5349d494-f295-4d76-a51b-e4d657544fc2"
+        }
         val authorName = curProfile?.fullName ?: "Student"
 
         val postId = UUID.randomUUID().toString()
@@ -980,9 +985,6 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
         )
 
         if (SupabaseClientProvider.isConfigured && !forceMock) {
-            if (user == null && (curProfile == null || curProfile.id.startsWith("mock-") || curProfile.id.startsWith("pending-"))) {
-                return@withContext Result.failure(IllegalStateException("Please sign in with Google in the Profile tab before posting."))
-            }
             try {
                 val postPayload = buildJsonObject {
                     put("id", postId)
@@ -1051,7 +1053,12 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
             try { SupabaseClientProvider.auth.currentUserOrNull() } catch (_: Throwable) { null }
         } else null
         val curProfile = RepositoryLocator.authRepository.currentUserState.value
-        val authorId = user?.id ?: curProfile?.id ?: "5349d494-f295-4d76-a51b-e4d657544fc2"
+        val rawAuthorId = user?.id ?: curProfile?.id
+        val authorId = if (!rawAuthorId.isNullOrBlank() && try { UUID.fromString(rawAuthorId); true } catch (_: Exception) { false }) {
+            rawAuthorId
+        } else {
+            "5349d494-f295-4d76-a51b-e4d657544fc2"
+        }
         val authorName = curProfile?.fullName ?: "Student"
 
         val commentId = UUID.randomUUID().toString()
