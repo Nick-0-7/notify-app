@@ -1,0 +1,67 @@
+name: Publish Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Release Tag (e.g. v1.0)'
+        required: true
+        default: 'v1.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Provide google-services.json for CI
+        run: |
+          if [ ! -f android/app/google-services.json ]; then
+            echo '{"project_info":{"project_number":"0","project_id":"notify-ci","storage_bucket":"ci.app"},"client":[{"client_info":{"mobilesdk_app_id":"1:0:android:0","android_client_info":{"package_name":"com.notify.app"}},"oauth_client":[],"api_key":[{"current_key":"dummy"}],"services":{}}],"configuration_version":"1"}' > android/app/google-services.json
+          fi
+
+      - name: Build APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Copy & Rename APK
+        run: |
+          mkdir -p release-artifacts
+          cp android/app/build/outputs/apk/debug/app-debug.apk release-artifacts/Notify-v1.0.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || github.event.inputs.version_tag }}
+          name: Notify ${{ github.ref_name || github.event.inputs.version_tag }}
+          body: |
+            ### What's New in this Release:
+            - **Dual-Engine OCR**: Native Windows Media OCR & Tesseract OCR for scanned PDF circulars.
+            - **Intelligent Deadline Milestones**: Multi-tier deadline detection (ranges, without late fee, late fee).
+            - **1-Tap Add to Google Calendar**: Direct calendar event creator from notice detail screen.
+            - **Smart Form Action Buttons**: Instant "Open Form" launcher for notices with Google Forms.
+            - **In-App Auto Updater**: Update checker with user permission & progress download.
+          files: release-artifacts/Notify-v1.0.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
