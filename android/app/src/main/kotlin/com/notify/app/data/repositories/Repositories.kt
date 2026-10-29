@@ -111,7 +111,7 @@ class AuthRepositoryImpl(private val forceMock: Boolean = false) : AuthRepositor
     override suspend fun signInWithGoogle(): Result<UserProfile> = withContext(Dispatchers.IO) {
         try {
             if (isLive) {
-                SupabaseClientProvider.auth.signInWith(Google)
+                SupabaseClientProvider.auth.signInWith(Google, redirectUrl = "notify://login-callback")
                 val user = SupabaseClientProvider.auth.currentUserOrNull()
                 val profile = if (user != null) {
                     val meta = user.userMetadata

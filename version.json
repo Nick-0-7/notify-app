@@ -1,7 +1,7 @@
 {
-  "versionCode": 3,
-  "versionName": "1.0.2",
-  "title": "Notify v1.0.2",
-  "releaseNotes": "• Google Sign-In with official Custom Tabs OAuth & callback handler\n• Student Hub: Live Supabase cloud sync for posts and comments\n• Real-time peer collaboration across all student devices\n• Performance optimizations and bug fixes",
-  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.2/Notify-v1.0.apk"
+  "versionCode": 4,
+  "versionName": "1.0.3",
+  "title": "Notify v1.0.3",
+  "releaseNotes": "• Fixed Google Sign-In redirect to return directly into the app\n• Student Hub: Live Supabase cloud sync for posts and comments\n• Real-time peer collaboration across all student devices\n• In-app update detection with direct APK download",
+  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.3/Notify-v1.0.apk"
 }
