@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.notify.app.core.SupabaseClientProvider
 import com.notify.app.data.repositories.RepositoryLocator
 import kotlinx.coroutines.launch
 
@@ -39,10 +38,6 @@ fun UserProfileScreen(
     var examAlertsEnabled by remember { mutableStateOf(true) }
     var placementAlertsEnabled by remember { mutableStateOf(true) }
     var repliesAlertsEnabled by remember { mutableStateOf(true) }
-
-    var supabaseUrlInput by remember { mutableStateOf(SupabaseClientProvider.supabaseUrl) }
-    var supabaseKeyInput by remember { mutableStateOf(SupabaseClientProvider.supabaseAnonKey) }
-    var showConfigDialog by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
 
@@ -224,7 +219,7 @@ fun UserProfileScreen(
                 }
             }
 
-            // Backend Connectivity Status
+            // App Information
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
@@ -237,35 +232,25 @@ fun UserProfileScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Supabase Cloud Backend", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                        Text("Notify App", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                         Surface(
-                            color = if (SupabaseClientProvider.isConfigured) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer,
+                            color = MaterialTheme.colorScheme.primaryContainer,
                             shape = RoundedCornerShape(6.dp)
                         ) {
                             Text(
-                                text = if (SupabaseClientProvider.isConfigured) "Connected" else "Local / Demo Mode",
+                                text = "v1.0.0",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (SupabaseClientProvider.isConfigured) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onTertiaryContainer,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Endpoint: ${SupabaseClientProvider.supabaseUrl}",
+                        text = "Real-time college circulars, timetable alerts, and student hub.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = { showConfigDialog = true },
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.CloudSync, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Configure Live Supabase Credentials")
-                    }
                 }
             }
 
@@ -287,50 +272,6 @@ fun UserProfileScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        if (showConfigDialog) {
-            AlertDialog(
-                onDismissRequest = { showConfigDialog = false },
-                title = { Text("Supabase Credentials") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(
-                            "Enter your live Supabase project URL and anon public key:",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        OutlinedTextField(
-                            value = supabaseUrlInput,
-                            onValueChange = { supabaseUrlInput = it },
-                            label = { Text("https://your-ref.supabase.co") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = supabaseKeyInput,
-                            onValueChange = { supabaseKeyInput = it },
-                            label = { Text("Anon Public API Key") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            SupabaseClientProvider.reconfigure(supabaseUrlInput, supabaseKeyInput)
-                            showConfigDialog = false
-                        }
-                    ) {
-                        Text("Save & Connect")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showConfigDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            )
         }
     }
 }
