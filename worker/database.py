@@ -124,8 +124,14 @@ class DatabaseClient:
         2. Check if canonical_url exists with differing content_hash -> create version, update notice.
         3. Completely new notice -> insert notice, version 1, extraction, user notifications, and FCM push.
         """
-        client = self._get_client()
+        # 0. Outdated notice filter: reject notices referencing obsolete years (older than 6 months)
+        import re
+        obsolete_year = re.search(r"\b(202[0-4]|201\d)\b", title + " " + raw_content[:300])
+        if obsolete_year and not re.search(r"\b(2025|2026|2027)\b", title):
+            logger.info(f"Skipping outdated notice ({obsolete_year.group(0)}): {title[:40]}")
+            return {"status": "SKIPPED_OUTDATED", "reason": f"Older than 6 months ({obsolete_year.group(0)})"}
 
+        client = self._get_client()
         if client:
             try:
                 # 1. Deduplication check: existing identical content

@@ -389,8 +389,8 @@ class NoticeRepositoryImpl : NoticeRepository {
             canonicalUrl = "https://www.sitcoe.ac.in/",
             originalUrl = "https://www.sitcoe.ac.in/",
             title = "Sharad Institute of Technology College of Engineering - Official Circular",
-            rawContent = "AICTE Scholarship and MAHADBT Scholarship schemes application notifications now active for academic year 2024-25. Visit student development portal for guidelines.",
-            normalizedContent = "aicte scholarship mahadbt scholarship schemes application notifications active 2024 25",
+            rawContent = "AICTE Scholarship and MAHADBT Scholarship schemes application notifications now active for academic year 2026-27. Visit student development portal for guidelines.",
+            normalizedContent = "aicte scholarship mahadbt scholarship schemes application notifications active 2026 27",
             contentHash = "97fe5a271bde15a4e9a62a148a773eea21052df4cbca835ff32289f6418a411e",
             documentType = "HTML",
             publishedAt = "2026-10-29T02:36:41Z",
@@ -398,8 +398,8 @@ class NoticeRepositoryImpl : NoticeRepository {
                 id = "db1a1af7-cb66-4090-8fff-9608842167c6",
                 noticeId = "6e95adb2-72d9-43bc-ba9a-690fa9d9386e",
                 category = NoticeCategory.SCHOLARSHIP,
-                datesExtracted = listOf("2024-25 Academic Session"),
-                deadlinesExtracted = listOf("2024-11-30T17:00:00Z"),
+                datesExtracted = listOf("2026-27 Academic Session"),
+                deadlinesExtracted = listOf("2026-11-30T17:00:00Z"),
                 eligibilityCriteria = listOf("Enrolled Students", "Valid Domicile / Category Certificate"),
                 requiredDocuments = listOf("Income Certificate", "Caste Validity (if applicable)", "Bank Passbook Copy"),
                 actionItems = listOf("Apply on MAHADBT Portal", "Submit copy to Student Welfare Office"),
@@ -411,23 +411,23 @@ class NoticeRepositoryImpl : NoticeRepository {
             id = "eb96fab9-ca8c-40e6-895e-75bdb33dcd69",
             collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
             sourceId = "927ca3b8-9a15-4a6d-84cb-58c511f1e845",
-            canonicalUrl = "https://www.sitcoe.ac.in/wp-content/uploads/DSY-ACAP-Admission-Notice-2024-25-1.pdf",
-            originalUrl = "https://www.sitcoe.ac.in/wp-content/uploads/DSY-ACAP-Admission-Notice-2024-25-1.pdf",
-            title = "Direct Second Year (DSY) ACAP Admission Notice 2024-25",
-            rawContent = "Notice regarding Against CAP (ACAP) vacancies for Direct Second Year Engineering admissions for AY 2024-25. Eligible diploma candidates must report to admission cell.",
-            normalizedContent = "direct second year dsy acap admission notice against cap vacancies engineering",
+            canonicalUrl = "https://www.sitcoe.ac.in/notices/midterm-2026.pdf",
+            originalUrl = "https://www.sitcoe.ac.in/notices/midterm-2026.pdf",
+            title = "SITCOE Midterm Examination Timetable (Nov 2026)",
+            rawContent = "Midterm examination schedule for all Engineering departments. Exams will commence from November 18, 2026. Students must carry valid hall tickets.",
+            normalizedContent = "midterm examination schedule engineering departments commence november 18 2026",
             contentHash = "4de6c3c29a3465d0b82f807bf5112b6a70a24c78accf1b8b847f6ee5aed62562",
             documentType = "PDF",
-            publishedAt = "2026-10-29T02:37:58Z",
+            publishedAt = "2026-10-29T10:00:00Z",
             extraction = NoticeExtraction(
-                id = "ext-dsy-01",
+                id = "ext-midterm-01",
                 noticeId = "eb96fab9-ca8c-40e6-895e-75bdb33dcd69",
-                category = NoticeCategory.ADMISSION,
-                datesExtracted = listOf("2024-25 Academic Year"),
-                deadlinesExtracted = listOf("2024-11-15T18:00:00Z"),
-                eligibilityCriteria = listOf("Completed Diploma in Engineering with >= 45% (40% reserved)"),
-                requiredDocuments = listOf("Diploma Final Marksheet", "Leaving Certificate", "Allotment Letter"),
-                actionItems = listOf("Report to Admission Cell with original documents"),
+                category = NoticeCategory.EXAMINATION,
+                datesExtracted = listOf("2026-11-18 (Exam Commencement)", "2026-11-12 (Hall Tickets)"),
+                deadlinesExtracted = listOf("2026-11-12T17:00:00Z"),
+                eligibilityCriteria = listOf("75% Minimum Attendance", "No Outstanding Tuition Fees"),
+                requiredDocuments = listOf("Printed Hall Ticket", "College Identity Card"),
+                actionItems = listOf("Download hall ticket from student portal", "Verify exam seating block"),
                 confidenceScore = 0.96f,
                 isVerifiedByModerator = true
             )
@@ -436,24 +436,24 @@ class NoticeRepositoryImpl : NoticeRepository {
             id = "1772a9e1-6ce5-4ace-9f53-c79b35a9f634",
             collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
             sourceId = "927ca3b8-9a15-4a6d-84cb-58c511f1e845",
-            canonicalUrl = "https://www.sitcoe.ac.in/wp-content/uploads/FYBTech-ILACAP-Admission-Notice-2024-25-1.pdf",
-            originalUrl = "https://www.sitcoe.ac.in/wp-content/uploads/FYBTech-ILACAP-Admission-Notice-2024-25-1.pdf",
-            title = "First Year (FY-BTech) IL & ACAP Admission Notice 2024-25",
-            rawContent = "Institutional Level (IL) and Against CAP vacancy rounds for First Year B.Tech admissions 2024-25. Verification of eligibility and merit display at college premises.",
-            normalizedContent = "first year fy btech il acap admission notice institutional level cap vacancy rounds",
+            canonicalUrl = "https://www.sitcoe.ac.in/placements/campus-drive-2026.pdf",
+            originalUrl = "https://www.sitcoe.ac.in/placements/campus-drive-2026.pdf",
+            title = "Campus Placement Drive: TCS & Infosys Software Roles 2026-27",
+            rawContent = "Training and Placement Department circular: Joint campus recruitment drive for final year B.Tech students. Online registrations open until November 25, 2026.",
+            normalizedContent = "training placement department joint campus recruitment drive final year btech",
             contentHash = "ac6d9e7c26aa1e3e0bc63b8b7af23816bc1150db6baf290594428dffc9852c6f",
             documentType = "PDF",
-            publishedAt = "2026-10-29T02:38:01Z",
+            publishedAt = "2026-10-29T11:00:00Z",
             extraction = NoticeExtraction(
-                id = "ext-fybtech-01",
+                id = "ext-placement-01",
                 noticeId = "1772a9e1-6ce5-4ace-9f53-c79b35a9f634",
-                category = NoticeCategory.ADMISSION,
-                datesExtracted = listOf("2024-25"),
-                deadlinesExtracted = listOf("2024-11-10T17:00:00Z"),
-                eligibilityCriteria = listOf("HSC (10+2) with Physics & Mathematics + MHT-CET / JEE Score"),
-                requiredDocuments = listOf("HSC Marksheet", "MHT-CET / JEE Scorecard", "Nationality / Domicile"),
-                actionItems = listOf("Submit IL Application form at Registrar Desk"),
-                confidenceScore = 0.94f,
+                category = NoticeCategory.PLACEMENT,
+                datesExtracted = listOf("2026-11-25 (Registration Deadline)", "2026-12-02 (Aptitude Test)"),
+                deadlinesExtracted = listOf("2026-11-25T23:59:59Z"),
+                eligibilityCriteria = listOf("B.Tech CSE/IT/ECE/Mech", "CGPA 6.5 or above without active backlogs"),
+                requiredDocuments = listOf("Updated Resume", "Photographs", "Semester Grade Sheets"),
+                actionItems = listOf("Register on TPO Portal", "Upload latest resume"),
+                confidenceScore = 0.95f,
                 isVerifiedByModerator = true
             )
         ),
@@ -461,60 +461,45 @@ class NoticeRepositoryImpl : NoticeRepository {
             id = "a0d55f42-7703-44be-b30e-06a41c9f467e",
             collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
             sourceId = "927ca3b8-9a15-4a6d-84cb-58c511f1e845",
-            canonicalUrl = "https://www.sitcoe.ac.in/wp-content/uploads/MTech-ILACAP-Admission-Notice-2024-25-1.pdf",
-            originalUrl = "https://www.sitcoe.ac.in/wp-content/uploads/MTech-ILACAP-Admission-Notice-2024-25-1.pdf",
-            title = "Master of Technology (M.Tech) IL & ACAP Admission Notice 2024-25",
-            rawContent = "Applications invited for vacant seats in M.Tech programs (Mechanical, Civil, Computer, Electrical) for Academic Year 2024-25.",
-            normalizedContent = "master technology mtech il acap admission notice vacant seats 2024 25",
+            canonicalUrl = "https://www.sitcoe.ac.in/events/annual-hackathon-2026.pdf",
+            originalUrl = "https://www.sitcoe.ac.in/events/annual-hackathon-2026.pdf",
+            title = "State Level Technical Symposium & Hackathon 2026",
+            rawContent = "Department of Computer Science invites project entries for National Level Hackathon 2026. Exciting cash prizes and internship offers for winners.",
+            normalizedContent = "state level technical symposium hackathon project entries cash prizes",
             contentHash = "e807527acdad2f174d3ddb2f220594d7003b1eec603b28c89d1030211e3911ab",
             documentType = "PDF",
-            publishedAt = "2026-10-29T02:38:05Z",
+            publishedAt = "2026-10-29T12:00:00Z",
             extraction = NoticeExtraction(
-                id = "ext-mtech-01",
+                id = "ext-hackathon-01",
                 noticeId = "a0d55f42-7703-44be-b30e-06a41c9f467e",
-                category = NoticeCategory.ADMISSION,
-                datesExtracted = listOf("2024-25 Session"),
-                deadlinesExtracted = listOf("2024-11-20T17:00:00Z"),
-                eligibilityCriteria = listOf("B.E. / B.Tech degree with valid GATE or Non-GATE qualification"),
-                requiredDocuments = listOf("Degree Certificate", "GATE Scorecard", "Transfer Certificate"),
-                actionItems = listOf("Submit PG application to Academic Section"),
+                category = NoticeCategory.EVENT,
+                datesExtracted = listOf("2026-12-10 (Event Date)", "2026-11-30 (Abstract Submission)"),
+                deadlinesExtracted = listOf("2026-11-30T23:59:00Z"),
+                eligibilityCriteria = listOf("Teams of 2 to 4 engineering students"),
+                requiredDocuments = listOf("Project Abstract PPT", "College ID Card"),
+                actionItems = listOf("Submit team details online before Nov 30"),
                 confidenceScore = 0.93f,
-                isVerifiedByModerator = false
-            )
-        ),
-        Notice(
-            id = "592e319d-185c-4ae1-bece-85476edbe9f7",
-            collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
-            sourceId = "927ca3b8-9a15-4a6d-84cb-58c511f1e845",
-            canonicalUrl = "https://www.sitcoe.ac.in/wp-content/uploads/Branch-Transfer-Notice-24-25-2.pdf",
-            originalUrl = "https://www.sitcoe.ac.in/wp-content/uploads/Branch-Transfer-Notice-24-25-2.pdf",
-            title = "Internal Branch Transfer Notification for AY 2024-25",
-            rawContent = "Students interested in change of branch for Second Year B.Tech must submit branch transfer application forms. Merit list will be prepared based on First Year CGPA.",
-            normalizedContent = "internal branch transfer notification second year btech cgpa merit list",
-            contentHash = "abb8bf9a40b713834892734b6175290779dd39f1fa1559f418bb723396600a8a",
-            documentType = "PDF",
-            publishedAt = "2026-10-29T02:38:09Z",
-            extraction = NoticeExtraction(
-                id = "ext-branch-01",
-                noticeId = "592e319d-185c-4ae1-bece-85476edbe9f7",
-                category = NoticeCategory.EXAMINATION,
-                datesExtracted = listOf("2024-25"),
-                deadlinesExtracted = listOf("2024-11-05T17:00:00Z"),
-                eligibilityCriteria = listOf("Cleared all Semester 1 and 2 subjects without backlogs"),
-                requiredDocuments = listOf("First Year Marksheet copy", "NOC from current department"),
-                actionItems = listOf("Submit Branch Transfer form before deadline"),
-                confidenceScore = 0.95f,
                 isVerifiedByModerator = true
             )
         )
     )
 
+    private fun isRecent(notice: Notice): Boolean {
+        // Strict freshness filter: Reject notices older than 6 months or referencing obsolete years (2024 or earlier)
+        val obsoleteRegex = Regex("""\b(202[0-4]|201\d)\b""")
+        if (obsoleteRegex.containsMatchIn(notice.title) && !notice.title.contains("2026")) return false
+        val pub = notice.publishedAt ?: return true
+        val year = pub.take(4).toIntOrNull() ?: return true
+        return year >= 2026
+    }
+
     override suspend fun getNotices(collegeId: String, category: NoticeCategory?, query: String?): List<Notice> = withContext(Dispatchers.IO) {
         sampleNotices.filter { notice ->
+            val matchRecent = isRecent(notice)
             val matchCollege = notice.collegeId == collegeId
             val matchCategory = category == null || notice.extraction?.category == category
             val matchQuery = query.isNullOrBlank() || notice.title.contains(query, ignoreCase = true) || notice.rawContent.contains(query, ignoreCase = true)
-            matchCollege && matchCategory && matchQuery
+            matchRecent && matchCollege && matchCategory && matchQuery
         }
     }
 
