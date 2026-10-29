@@ -151,6 +151,7 @@ class AuthRepositoryImpl(private val forceMock: Boolean = false) : AuthRepositor
                     _currentUser.value = profile
                     com.notify.app.core.SessionManager.saveProfile(profile = profile)
                     syncDeviceTokenIfAvailable()
+                    ensureCollegeMembership(user.id)
                 }
                 Result.success(profile)
             } else {
@@ -174,6 +175,24 @@ class AuthRepositoryImpl(private val forceMock: Boolean = false) : AuthRepositor
         com.notify.app.core.SessionManager.saveProfile(profile = profile)
         CoroutineScope(Dispatchers.IO).launch {
             syncDeviceTokenIfAvailable()
+            ensureCollegeMembership(profile.id)
+        }
+    }
+
+    private suspend fun ensureCollegeMembership(userId: String) {
+        if (!isLive) return
+        try {
+            val sitcoeId = "b0f5e79d-9f32-44fd-a437-94f04a393088"
+            val memPayload = buildJsonObject {
+                put("id", UUID.randomUUID().toString())
+                put("college_id", sitcoeId)
+                put("user_id", userId)
+                put("role", "student")
+                put("status", "active")
+            }
+            SupabaseClientProvider.postgrest.from("college_memberships").insert(memPayload)
+        } catch (e: Exception) {
+            android.util.Log.d("AuthRepo", "Membership already synced or active: ${e.message}")
         }
     }
 
@@ -961,6 +980,9 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
         )
 
         if (SupabaseClientProvider.isConfigured && !forceMock) {
+            if (user == null && (curProfile == null || curProfile.id.startsWith("mock-") || curProfile.id.startsWith("pending-"))) {
+                return@withContext Result.failure(IllegalStateException("Please sign in with Google in the Profile tab before posting."))
+            }
             try {
                 val postPayload = buildJsonObject {
                     put("id", postId)
@@ -975,6 +997,7 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
                 println("[CommunityRepo] Inserted post $postId to Supabase")
             } catch (e: Exception) {
                 println("[CommunityRepo] Failed to upload post to Supabase: ${e.message}")
+                return@withContext Result.failure(Exception("Failed to upload post to cloud: ${e.message}"))
             }
         }
 

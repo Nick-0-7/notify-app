@@ -39,6 +39,8 @@ fun StudentCommunityScreen(
     var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
+    val curProfile by RepositoryLocator.authRepository.currentUserState.collectAsState()
+
     fun loadPosts() {
         isLoading = true
         scope.launch {
@@ -107,6 +109,34 @@ fun StudentCommunityScreen(
                         onClick = { selectedType = if (selectedType == type) null else type },
                         label = { Text(type.name.lowercase().replaceFirstChar { it.uppercase() }) }
                     )
+                }
+            }
+
+            if (curProfile == null || curProfile?.id?.startsWith("mock-") == true || curProfile?.id?.startsWith("pending-") == true) {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Browsing SITCOE Student Hub. Sign in via Profile to post messages.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
                 }
             }
 
@@ -312,6 +342,14 @@ fun CreatePostScreen(
                             isSubmitting = true
                             errorMessage = null
                             scope.launch {
+                                val curUser = RepositoryLocator.authRepository.currentUserState.value
+                                if (com.notify.app.core.SupabaseClientProvider.isConfigured &&
+                                    (curUser == null || curUser.id.startsWith("mock-") || curUser.id.startsWith("pending-"))) {
+                                    isSubmitting = false
+                                    errorMessage = "Please sign in with Google in the Profile tab before posting so your friends can see your message."
+                                    return@launch
+                                }
+
                                 val attachments = if (attachedFileName != null) {
                                     listOf(
                                         PostAttachment(

@@ -1,7 +1,7 @@
 {
-  "versionCode": 9,
-  "versionName": "1.0.8",
-  "title": "Notify v1.0.8",
-  "releaseNotes": "- Fixed GitHub APK download by supporting cross-host redirects\n- Added direct 'Download in Browser' fallback button\n- Offline & Persistent local cache for all Student Hub messages\n- Automatic college membership synchronization & permanent login session",
-  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.8/Notify-v1.0.apk"
+  "versionCode": 10,
+  "versionName": "1.0.9",
+  "title": "Notify v1.0.9",
+  "releaseNotes": "- Public access to published Student Hub messages for all friends and students\n- Automatic active membership registration on sign-in\n- Explicit sign-in prompt before creating posts\n- Cloud error handling and cross-device message synchronization",
+  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.9/Notify-v1.0.apk"
 }
