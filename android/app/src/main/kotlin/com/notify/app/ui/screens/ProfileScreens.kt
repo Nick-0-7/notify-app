@@ -28,7 +28,8 @@ import kotlinx.coroutines.launch
 fun UserProfileScreen(
     onSwitchCollege: () -> Unit,
     onNavigateToAdmin: () -> Unit,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    onNavigateToAuth: () -> Unit = {}
 ) {
     val authRepo = RepositoryLocator.authRepository
     val collegeRepo = RepositoryLocator.collegeRepository
@@ -319,19 +320,31 @@ fun UserProfileScreen(
             // Sign Out or Sign In Button
             val isGuest = currentUser == null || currentUser?.id?.startsWith("mock-") == true || currentUser?.id?.startsWith("pending-") == true
             if (isGuest) {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            authRepo.signInWithGoogle()
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth().height(48.dp)
-                ) {
-                    Icon(Icons.Default.Login, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Sign In with Google")
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                authRepo.signInWithGoogle()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    ) {
+                        Icon(Icons.Default.Login, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Sign In with Google")
+                    }
+
+                    OutlinedButton(
+                        onClick = onNavigateToAuth,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    ) {
+                        Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Sign In with Email or Register")
+                    }
                 }
             } else {
                 Button(

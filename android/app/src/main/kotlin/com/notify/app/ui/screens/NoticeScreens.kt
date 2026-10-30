@@ -42,11 +42,12 @@ fun NoticeFeedScreen(
     var selectedCategory by remember { mutableStateOf<NoticeCategory?>(null) }
     var notices by remember { mutableStateOf<List<Notice>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
 
     fun refresh() {
         isLoading = true
         val colId = activeCollege?.id ?: "col-alpha-1"
-        kotlinx.coroutines.GlobalScope.launch {
+        scope.launch {
             notices = noticeRepo.getNotices(colId, selectedCategory, searchQuery)
             isLoading = false
         }
@@ -176,7 +177,7 @@ fun NoticeFeedScreen(
                                         )
                                     }
                                     Text(
-                                        text = notice.publishedAt?.substringBefore("T") ?: "Recent",
+                                        text = (notice.publishedAt ?: notice.firstSeenAt)?.substringBefore("T") ?: "Recent",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -354,11 +355,12 @@ fun NoticeDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Published: ${currentNotice.publishedAt?.substringBefore("T") ?: "N/A"}",
+                        text = "Published: ${(currentNotice.publishedAt ?: currentNotice.firstSeenAt)?.substringBefore("T") ?: "Recent"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     val isFormLink = currentNotice.originalUrl.contains("forms.gle") || currentNotice.originalUrl.contains("docs.google.com/forms")
+                    val isPdf = currentNotice.originalUrl.lowercase().endsWith(".pdf") || currentNotice.documentType.equals("PDF", ignoreCase = true)
                     FilledTonalButton(
                         onClick = {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(currentNotice.originalUrl))
@@ -368,12 +370,22 @@ fun NoticeDetailScreen(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Icon(
-                            if (isFormLink) Icons.Default.Assignment else Icons.Default.OpenInNew,
+                            when {
+                                isFormLink -> Icons.Default.Assignment
+                                isPdf -> Icons.Default.PictureAsPdf
+                                else -> Icons.Default.OpenInNew
+                            },
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (isFormLink) "Open Form" else "Original Doc")
+                        Text(
+                            when {
+                                isFormLink -> "Open Form"
+                                isPdf -> "Open PDF"
+                                else -> "Original Doc"
+                            }
+                        )
                     }
                 }
 

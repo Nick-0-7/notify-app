@@ -1,5 +1,6 @@
 package com.notify.app.ui.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -52,14 +53,23 @@ fun AppNavigation(
     val backStack = remember { mutableStateListOf<Screen>() }
 
     fun navigateTo(screen: Screen) {
-        backStack.add(currentScreen)
-        currentScreen = screen
+        if (currentScreen != screen) {
+            backStack.add(currentScreen)
+            currentScreen = screen
+        }
     }
 
     fun popBack() {
         if (backStack.isNotEmpty()) {
             currentScreen = backStack.removeLast()
+        } else if (currentScreen !is Screen.Main && currentScreen !is Screen.Splash) {
+            currentScreen = Screen.Main
         }
+    }
+
+    // Hardware & gesture back handler: safely intercept system back button on any sub-screen
+    BackHandler(enabled = currentScreen !is Screen.Main && currentScreen !is Screen.Splash) {
+        popBack()
     }
 
     Crossfade(targetState = currentScreen, label = "ScreenTransition") { screen ->
@@ -81,12 +91,21 @@ fun AppNavigation(
                 AuthScreen(
                     onAuthSuccess = {
                         com.notify.app.core.SessionManager.setHasSeenOnboarding(true)
-                        currentScreen = Screen.Main
+                        if (backStack.isNotEmpty()) {
+                            popBack()
+                        } else {
+                            currentScreen = Screen.Main
+                        }
                     },
                     onSkipToDashboard = {
                         com.notify.app.core.SessionManager.setHasSeenOnboarding(true)
-                        currentScreen = Screen.Main
-                    }
+                        if (backStack.isNotEmpty()) {
+                            popBack()
+                        } else {
+                            currentScreen = Screen.Main
+                        }
+                    },
+                    onBack = if (backStack.isNotEmpty()) { { popBack() } } else null
                 )
             }
             is Screen.CollegeSelect -> {
@@ -105,7 +124,11 @@ fun AppNavigation(
                     onNavigateToCreatePost = { navigateTo(Screen.CreatePost) },
                     onNavigateToPostDetail = { postId -> navigateTo(Screen.PostDetail(postId)) },
                     onNavigateToAdmin = { navigateTo(Screen.AdminModeration) },
-                    onSignOut = { currentScreen = Screen.Auth }
+                    onNavigateToAuth = { navigateTo(Screen.Auth) },
+                    onSignOut = {
+                        backStack.clear()
+                        currentScreen = Screen.Auth
+                    }
                 )
             }
             is Screen.NoticeDetail -> {
@@ -123,14 +146,16 @@ fun AppNavigation(
             is Screen.CreatePost -> {
                 CreatePostScreen(
                     onBack = { popBack() },
-                    onPostCreated = { popBack() }
+                    onPostCreated = { popBack() },
+                    onNavigateToAuth = { navigateTo(Screen.Auth) }
                 )
             }
             is Screen.PostDetail -> {
                 PostDetailScreen(
                     postId = screen.postId,
                     onBack = { popBack() },
-                    onReportPost = { pid -> navigateTo(Screen.ReportContent(ReportTarget.POST, pid)) }
+                    onReportPost = { pid -> navigateTo(Screen.ReportContent(ReportTarget.POST, pid)) },
+                    onNavigateToAuth = { navigateTo(Screen.Auth) }
                 )
             }
             is Screen.NotificationInbox -> {
@@ -171,11 +196,17 @@ fun MainContainerScreen(
     onNavigateToCreatePost: () -> Unit,
     onNavigateToPostDetail: (String) -> Unit,
     onNavigateToAdmin: () -> Unit,
+    onNavigateToAuth: () -> Unit,
     onSignOut: () -> Unit
 ) {
     val context = LocalContext.current
     var selectedTab by remember { mutableStateOf(BottomTab.HOME) }
     var availableUpdate by remember { mutableStateOf<AppUpdateInfo?>(null) }
+
+    // If on Student Hub, Notices, or Profile tab, pressing back returns to Home tab first
+    BackHandler(enabled = selectedTab != BottomTab.HOME) {
+        selectedTab = BottomTab.HOME
+    }
 
     LaunchedEffect(Unit) {
         val update = UpdateManager.checkForUpdates(context)
@@ -223,12 +254,14 @@ fun MainContainerScreen(
                 )
                 BottomTab.HUB -> StudentCommunityScreen(
                     onNavigateToPostDetail = onNavigateToPostDetail,
-                    onNavigateToCreatePost = onNavigateToCreatePost
+                    onNavigateToCreatePost = onNavigateToCreatePost,
+                    onNavigateToAuth = onNavigateToAuth
                 )
                 BottomTab.PROFILE -> UserProfileScreen(
                     onSwitchCollege = onSwitchCollege,
                     onNavigateToAdmin = onNavigateToAdmin,
-                    onSignOut = onSignOut
+                    onSignOut = onSignOut,
+                    onNavigateToAuth = onNavigateToAuth
                 )
             }
         }

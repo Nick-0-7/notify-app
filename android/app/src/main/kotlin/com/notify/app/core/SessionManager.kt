@@ -107,6 +107,19 @@ object SessionManager {
     }
 
     private const val KEY_HAS_SEEN_ONBOARDING = "has_seen_onboarding"
+    private const val KEY_BOOKMARKS = "bookmarked_notice_ids"
+
+    fun saveBookmarks(context: Context? = null, noticeIds: Set<String>) {
+        val ctx = context ?: appContext ?: return
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putStringSet(KEY_BOOKMARKS, noticeIds).apply()
+    }
+
+    fun getBookmarks(context: Context? = null): Set<String> {
+        val ctx = context ?: appContext ?: return emptySet()
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getStringSet(KEY_BOOKMARKS, null) ?: emptySet()
+    }
 
     fun setHasSeenOnboarding(seen: Boolean = true, context: Context? = null) {
         val ctx = context ?: appContext ?: return

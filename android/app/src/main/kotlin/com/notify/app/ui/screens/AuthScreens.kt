@@ -1,11 +1,14 @@
 package com.notify.app.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -87,8 +90,13 @@ fun SplashScreen(
 @Composable
 fun AuthScreen(
     onAuthSuccess: () -> Unit,
-    onSkipToDashboard: () -> Unit
+    onSkipToDashboard: () -> Unit,
+    onBack: (() -> Unit)? = null
 ) {
+    if (onBack != null) {
+        BackHandler { onBack() }
+    }
+
     var isSignUp by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -112,10 +120,21 @@ fun AuthScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            if (onBack != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            }
             androidx.compose.foundation.Image(
                 painter = androidx.compose.ui.res.painterResource(id = com.notify.app.R.drawable.app_logo),
                 contentDescription = "Notify Logo",

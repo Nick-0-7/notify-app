@@ -28,7 +28,8 @@ import java.util.UUID
 @Composable
 fun StudentCommunityScreen(
     onNavigateToPostDetail: (String) -> Unit,
-    onNavigateToCreatePost: () -> Unit
+    onNavigateToCreatePost: () -> Unit,
+    onNavigateToAuth: () -> Unit = {}
 ) {
     val collegeRepo = RepositoryLocator.collegeRepository
     val communityRepo = RepositoryLocator.communityRepository
@@ -37,23 +38,61 @@ fun StudentCommunityScreen(
     var selectedType by remember { mutableStateOf<PostType?>(null) }
     var posts by remember { mutableStateOf<List<StudentPost>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var showSignInPrompt by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val curProfile by RepositoryLocator.authRepository.currentUserState.collectAsState()
+    val isGuest = curProfile == null || curProfile?.id?.startsWith("mock-") == true || curProfile?.id?.startsWith("pending-") == true
 
     fun loadPosts() {
         isLoading = true
         scope.launch {
-            val colId = activeCollege?.id ?: "b0f5e79d-9f32-44fd-a437-94f04a393088"
-            posts = communityRepo.getPosts(colId, selectedType)
-            isLoading = false
+            try {
+                val colId = activeCollege?.id ?: "b0f5e79d-9f32-44fd-a437-94f04a393088"
+                posts = communityRepo.getPosts(colId, selectedType)
+            } catch (e: Exception) {
+                android.util.Log.e("StudentHub", "Error loading posts: ${e.message}")
+            } finally {
+                isLoading = false
+            }
         }
     }
 
     LaunchedEffect(activeCollege, selectedType) {
-        val colId = activeCollege?.id ?: "b0f5e79d-9f32-44fd-a437-94f04a393088"
-        posts = communityRepo.getPosts(colId, selectedType)
-        isLoading = false
+        try {
+            val colId = activeCollege?.id ?: "b0f5e79d-9f32-44fd-a437-94f04a393088"
+            posts = communityRepo.getPosts(colId, selectedType)
+        } catch (e: Exception) {
+            android.util.Log.e("StudentHub", "Error fetching posts: ${e.message}")
+        } finally {
+            isLoading = false
+        }
+    }
+
+    if (showSignInPrompt) {
+        AlertDialog(
+            onDismissRequest = { showSignInPrompt = false },
+            icon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("Sign In Required", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("Student Hub discussions and messages are reserved for verified college members. Please sign in to create posts and connect with fellow students.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSignInPrompt = false
+                        onNavigateToAuth()
+                    }
+                ) {
+                    Text("Sign In")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignInPrompt = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -78,7 +117,13 @@ fun StudentCommunityScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onNavigateToCreatePost,
+                onClick = {
+                    if (isGuest) {
+                        showSignInPrompt = true
+                    } else {
+                        onNavigateToCreatePost()
+                    }
+                },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
                 Icon(Icons.Default.Edit, contentDescription = "Create Post")
@@ -112,30 +157,45 @@ fun StudentCommunityScreen(
                 }
             }
 
-            if (curProfile == null || curProfile?.id?.startsWith("mock-") == true || curProfile?.id?.startsWith("pending-") == true) {
+            if (isGuest) {
                 Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f),
+                    shape = RoundedCornerShape(10.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Icon(
-                            Icons.Default.Info,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Browsing SITCOE Student Hub. Sign in via Profile to post messages.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Guest mode. Sign in to post messages & participate in discussions.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                        FilledTonalButton(
+                            onClick = onNavigateToAuth,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Sign In", style = MaterialTheme.typography.labelMedium)
+                        }
                     }
                 }
             }
@@ -309,11 +369,14 @@ fun StudentCommunityScreen(
 @Composable
 fun CreatePostScreen(
     onBack: () -> Unit,
-    onPostCreated: () -> Unit
+    onPostCreated: () -> Unit,
+    onNavigateToAuth: () -> Unit = {}
 ) {
     val collegeRepo = RepositoryLocator.collegeRepository
     val communityRepo = RepositoryLocator.communityRepository
     val activeCollege by collegeRepo.activeCollegeState.collectAsState()
+    val curProfile by RepositoryLocator.authRepository.currentUserState.collectAsState()
+    val isGuest = curProfile == null || curProfile?.id?.startsWith("mock-") == true || curProfile?.id?.startsWith("pending-") == true
     val scope = rememberCoroutineScope()
 
     var title by remember { mutableStateOf("") }
@@ -335,6 +398,10 @@ fun CreatePostScreen(
                 actions = {
                     Button(
                         onClick = {
+                            if (isGuest) {
+                                errorMessage = "Please sign in to publish posts."
+                                return@Button
+                            }
                             if (title.isBlank() || content.isBlank()) {
                                 errorMessage = "Please enter both a title and content."
                                 return@Button
@@ -342,32 +409,37 @@ fun CreatePostScreen(
                             isSubmitting = true
                             errorMessage = null
                             scope.launch {
-                                val attachments = if (attachedFileName != null) {
-                                    listOf(
-                                        PostAttachment(
-                                            id = UUID.randomUUID().toString(),
-                                            postId = "",
-                                            fileUrl = "https://apex.edu/files/$attachedFileName",
-                                            storagePath = "col-alpha-1/attachments/$attachedFileName",
-                                            fileName = attachedFileName ?: "Document.pdf",
-                                            fileSizeBytes = 1048576,
-                                            mimeType = "application/pdf",
-                                            fileType = AttachmentType.PDF
+                                try {
+                                    val attachments = if (attachedFileName != null) {
+                                        listOf(
+                                            PostAttachment(
+                                                id = UUID.randomUUID().toString(),
+                                                postId = "",
+                                                fileUrl = "https://apex.edu/files/$attachedFileName",
+                                                storagePath = "col-alpha-1/attachments/$attachedFileName",
+                                                fileName = attachedFileName ?: "Document.pdf",
+                                                fileSizeBytes = 1048576,
+                                                mimeType = "application/pdf",
+                                                fileType = AttachmentType.PDF
+                                            )
                                         )
-                                    )
-                                } else emptyList()
+                                    } else emptyList()
 
-                                val colId = activeCollege?.id ?: "b0f5e79d-9f32-44fd-a437-94f04a393088"
-                                val res = communityRepo.createPost(colId, title, content, selectedType, attachments)
-                                isSubmitting = false
-                                if (res.isSuccess) {
-                                    onPostCreated()
-                                } else {
-                                    errorMessage = res.exceptionOrNull()?.localizedMessage ?: "Failed to post"
+                                    val colId = activeCollege?.id ?: "b0f5e79d-9f32-44fd-a437-94f04a393088"
+                                    val res = communityRepo.createPost(colId, title, content, selectedType, attachments)
+                                    isSubmitting = false
+                                    if (res.isSuccess) {
+                                        onPostCreated()
+                                    } else {
+                                        errorMessage = res.exceptionOrNull()?.localizedMessage ?: "Failed to post"
+                                    }
+                                } catch (e: Exception) {
+                                    isSubmitting = false
+                                    errorMessage = e.localizedMessage ?: "Failed to post message"
                                 }
                             }
                         },
-                        enabled = !isSubmitting
+                        enabled = !isSubmitting && !isGuest
                     ) {
                         Text("Post")
                     }
@@ -382,6 +454,37 @@ fun CreatePostScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            if (isGuest) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                "Sign In Required",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Text(
+                                "Only signed-in members can publish posts in the Student Hub.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                        Button(onClick = onNavigateToAuth) {
+                            Text("Sign In")
+                        }
+                    }
+                }
+            }
+
             if (errorMessage != null) {
                 Text(
                     text = errorMessage ?: "",
@@ -469,20 +572,29 @@ fun CreatePostScreen(
 fun PostDetailScreen(
     postId: String,
     onBack: () -> Unit,
-    onReportPost: (String) -> Unit
+    onReportPost: (String) -> Unit,
+    onNavigateToAuth: () -> Unit = {}
 ) {
     val communityRepo = RepositoryLocator.communityRepository
+    val curProfile by RepositoryLocator.authRepository.currentUserState.collectAsState()
+    val isGuest = curProfile == null || curProfile?.id?.startsWith("mock-") == true || curProfile?.id?.startsWith("pending-") == true
     val scope = rememberCoroutineScope()
 
     var post by remember { mutableStateOf<StudentPost?>(null) }
     var comments by remember { mutableStateOf<List<Comment>>(emptyList()) }
     var newCommentText by remember { mutableStateOf("") }
+    var isSending by remember { mutableStateOf(false) }
+    var commentError by remember { mutableStateOf<String?>(null) }
     var isLiked by remember { mutableStateOf(false) }
 
     fun refresh() {
         scope.launch {
-            post = communityRepo.getPostById(postId)
-            comments = communityRepo.getComments(postId)
+            try {
+                post = communityRepo.getPostById(postId)
+                comments = communityRepo.getComments(postId)
+            } catch (e: Exception) {
+                android.util.Log.e("PostDetail", "Error loading discussion: ${e.message}")
+            }
         }
     }
 
@@ -507,35 +619,107 @@ fun PostDetailScreen(
             )
         },
         bottomBar = {
-            Surface(
-                tonalElevation = 4.dp,
-                modifier = Modifier.fillMaxWidth().imePadding()
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            if (isGuest) {
+                Surface(
+                    tonalElevation = 6.dp,
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
+                    modifier = Modifier.fillMaxWidth().imePadding()
                 ) {
-                    OutlinedTextField(
-                        value = newCommentText,
-                        onValueChange = { newCommentText = it },
-                        placeholder = { Text("Add a comment...") },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(20.dp),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = {
-                            if (newCommentText.isNotBlank()) {
-                                scope.launch {
-                                    communityRepo.addComment(postId, newCommentText)
-                                    newCommentText = ""
-                                    refresh()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f).padding(end = 12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    "Sign In to Join Discussion",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                )
+                                Text(
+                                    "Messaging is reserved for signed-in members",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Button(onClick = onNavigateToAuth) {
+                            Text("Sign In")
+                        }
+                    }
+                }
+            } else {
+                Surface(
+                    tonalElevation = 4.dp,
+                    modifier = Modifier.fillMaxWidth().imePadding()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        if (commentError != null) {
+                            Text(
+                                text = commentError ?: "",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(bottom = 6.dp, start = 4.dp)
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = newCommentText,
+                                onValueChange = {
+                                    newCommentText = it
+                                    if (commentError != null) commentError = null
+                                },
+                                placeholder = { Text("Add a comment...") },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(20.dp),
+                                singleLine = true,
+                                enabled = !isSending
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(
+                                onClick = {
+                                    val trimmed = newCommentText.trim()
+                                    if (trimmed.isNotBlank() && !isSending) {
+                                        isSending = true
+                                        commentError = null
+                                        scope.launch {
+                                            try {
+                                                val result = communityRepo.addComment(postId, trimmed)
+                                                if (result.isSuccess) {
+                                                    newCommentText = ""
+                                                    refresh()
+                                                } else {
+                                                    commentError = result.exceptionOrNull()?.localizedMessage ?: "Failed to post comment"
+                                                }
+                                            } catch (e: Exception) {
+                                                commentError = e.localizedMessage ?: "Failed to post message"
+                                            } finally {
+                                                isSending = false
+                                            }
+                                        }
+                                    }
+                                },
+                                enabled = !isSending && newCommentText.isNotBlank()
+                            ) {
+                                if (isSending) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                } else {
+                                    Icon(Icons.Default.Send, contentDescription = "Send", tint = MaterialTheme.colorScheme.primary)
                                 }
                             }
                         }
-                    ) {
-                        Icon(Icons.Default.Send, contentDescription = "Send", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             }

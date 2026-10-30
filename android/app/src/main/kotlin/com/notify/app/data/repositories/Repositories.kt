@@ -19,6 +19,8 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import java.util.UUID
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CopyOnWriteArraySet
 
 // ==========================================
 // 1. AUTH REPOSITORY
@@ -402,7 +404,9 @@ interface NoticeRepository {
 }
 
 class NoticeRepositoryImpl(private val forceMock: Boolean = false) : NoticeRepository {
-    private val bookmarkedNoticeIds = mutableSetOf<String>()
+    private val bookmarkedNoticeIds = CopyOnWriteArraySet<String>().apply {
+        addAll(com.notify.app.core.SessionManager.getBookmarks())
+    }
 
     private val sampleNotices = mutableListOf(
         Notice(
@@ -715,7 +719,7 @@ class NoticeRepositoryImpl(private val forceMock: Boolean = false) : NoticeRepos
             val matchCategory = category == null || notice.extraction?.category == category
             val matchQuery = query.isNullOrBlank() || notice.title.contains(query, ignoreCase = true) || notice.rawContent.contains(query, ignoreCase = true)
             matchRecent && matchCollege && matchCategory && matchQuery
-        }
+        }.sortedByDescending { it.publishedAt ?: it.firstSeenAt ?: "" }
     }
 
     override suspend fun getNoticeById(noticeId: String): Notice? = withContext(Dispatchers.IO) {
@@ -734,13 +738,15 @@ class NoticeRepositoryImpl(private val forceMock: Boolean = false) : NoticeRepos
     }
 
     override suspend fun toggleBookmark(noticeId: String, note: String?): Boolean = withContext(Dispatchers.IO) {
-        if (bookmarkedNoticeIds.contains(noticeId)) {
+        val newState = if (bookmarkedNoticeIds.contains(noticeId)) {
             bookmarkedNoticeIds.remove(noticeId)
             false
         } else {
             bookmarkedNoticeIds.add(noticeId)
             true
         }
+        com.notify.app.core.SessionManager.saveBookmarks(noticeIds = bookmarkedNoticeIds)
+        newState
     }
 
     override suspend fun isBookmarked(noticeId: String): Boolean = withContext(Dispatchers.IO) {
@@ -748,12 +754,13 @@ class NoticeRepositoryImpl(private val forceMock: Boolean = false) : NoticeRepos
     }
 
     override suspend fun getBookmarks(): List<Bookmark> = withContext(Dispatchers.IO) {
+        val currentUid = RepositoryLocator.authRepository.currentUserState.value?.id ?: "guest"
         bookmarkedNoticeIds.mapNotNull { nid ->
-            val notice = sampleNotices.find { it.id == nid }
+            val notice = getNoticeById(nid)
             notice?.let {
                 Bookmark(
                     id = UUID.randomUUID().toString(),
-                    userId = "mock-user-1",
+                    userId = currentUid,
                     noticeId = nid,
                     notice = it
                 )
@@ -885,11 +892,11 @@ interface CommunityRepository {
 }
 
 class CommunityRepositoryImpl(private val forceMock: Boolean = false) : CommunityRepository {
-    // Persistent local cache + fallback
-    private val posts = mutableListOf<StudentPost>().apply {
+    // Persistent thread-safe local cache + fallback
+    private val posts = CopyOnWriteArrayList<StudentPost>().apply {
         addAll(com.notify.app.core.SessionManager.getCachedPosts())
     }
-    private val comments = mutableListOf<Comment>()
+    private val comments = CopyOnWriteArrayList<Comment>()
 
     private fun isExpired(createdAtStr: String?): Boolean {
         // Keep all student posts permanently in the community feed
@@ -950,62 +957,85 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
         type: PostType,
         attachments: List<PostAttachment>
     ): Result<StudentPost> = withContext(Dispatchers.IO) {
-        purgeExpiredPosts()
-        val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }
-        val user = if (SupabaseClientProvider.isConfigured && !forceMock) {
-            try { SupabaseClientProvider.auth.currentUserOrNull() } catch (_: Throwable) { null }
-        } else null
-        val curProfile = RepositoryLocator.authRepository.currentUserState.value
-        val rawAuthorId = user?.id ?: curProfile?.id
-        val authorId = if (!rawAuthorId.isNullOrBlank() && try { UUID.fromString(rawAuthorId); true } catch (_: Exception) { false }) {
-            rawAuthorId
-        } else {
-            "5349d494-f295-4d76-a51b-e4d657544fc2"
-        }
-        val authorName = curProfile?.fullName ?: "Student"
-
-        val postId = UUID.randomUUID().toString()
-        val nowIso = isoFormat.format(Date())
-
-        val newPost = StudentPost(
-            id = postId,
-            collegeId = collegeId,
-            authorId = authorId,
-            title = title.trim(),
-            content = content.trim(),
-            postType = type,
-            status = "PUBLISHED",
-            createdAt = nowIso,
-            author = UserProfile(id = authorId, fullName = authorName),
-            attachments = attachments,
-            commentsCount = 0,
-            reactionsCount = emptyMap()
-        )
-
-        if (SupabaseClientProvider.isConfigured && !forceMock) {
-            try {
-                val postPayload = buildJsonObject {
-                    put("id", postId)
-                    put("college_id", collegeId)
-                    put("author_id", authorId)
-                    put("title", title.trim())
-                    put("content", content.trim())
-                    put("post_type", type.name)
-                    put("status", "PUBLISHED")
-                }
-                SupabaseClientProvider.postgrest.from("student_posts").insert(postPayload)
-                println("[CommunityRepo] Inserted post $postId to Supabase")
-            } catch (e: Exception) {
-                println("[CommunityRepo] Failed to upload post to Supabase: ${e.message}")
-                return@withContext Result.failure(Exception("Failed to upload post to cloud: ${e.message}"))
+        try {
+            purgeExpiredPosts()
+            val curProfile = RepositoryLocator.authRepository.currentUserState.value
+            val isGuest = curProfile == null || curProfile.id.startsWith("mock-") || curProfile.id.startsWith("pending-")
+            if (!forceMock && isGuest) {
+                return@withContext Result.failure(IllegalStateException("Only signed-in members can create posts. Please sign in."))
             }
-        }
 
-        posts.add(0, newPost)
-        com.notify.app.core.SessionManager.saveCachedPosts(posts = posts)
-        Result.success(newPost)
+            val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val user = if (SupabaseClientProvider.isConfigured && !forceMock) {
+                try { SupabaseClientProvider.auth.currentUserOrNull() } catch (_: Throwable) { null }
+            } else null
+
+            val rawAuthorId = user?.id ?: curProfile?.id
+            val authorId = if (!rawAuthorId.isNullOrBlank() && try { UUID.fromString(rawAuthorId); true } catch (_: Exception) { false }) {
+                rawAuthorId
+            } else {
+                if (forceMock) UUID.randomUUID().toString() else "5349d494-f295-4d76-a51b-e4d657544fc2"
+            }
+            val authorName = curProfile?.fullName?.ifBlank { "Student" } ?: "Student"
+
+            val postId = UUID.randomUUID().toString()
+            val nowIso = isoFormat.format(Date())
+
+            val newPost = StudentPost(
+                id = postId,
+                collegeId = collegeId,
+                authorId = authorId,
+                title = title.trim(),
+                content = content.trim(),
+                postType = type,
+                status = "PUBLISHED",
+                createdAt = nowIso,
+                author = UserProfile(id = authorId, fullName = authorName, bio = curProfile?.bio),
+                attachments = attachments,
+                commentsCount = 0,
+                reactionsCount = emptyMap()
+            )
+
+            if (SupabaseClientProvider.isConfigured && !forceMock) {
+                // Ensure profile row exists in profiles table so foreign key constraint doesn't fail
+                try {
+                    val profilePayload = buildJsonObject {
+                        put("id", authorId)
+                        put("full_name", authorName)
+                        put("bio", curProfile?.bio ?: "Student")
+                    }
+                    SupabaseClientProvider.postgrest.from("profiles").upsert(profilePayload)
+                } catch (e: Exception) {
+                    println("[CommunityRepo] Profile upsert notice: ${e.message}")
+                }
+
+                try {
+                    val postPayload = buildJsonObject {
+                        put("id", postId)
+                        put("college_id", collegeId)
+                        put("author_id", authorId)
+                        put("title", title.trim())
+                        put("content", content.trim())
+                        put("post_type", type.name)
+                        put("status", "PUBLISHED")
+                    }
+                    SupabaseClientProvider.postgrest.from("student_posts").insert(postPayload)
+                    println("[CommunityRepo] Inserted post $postId to Supabase")
+                } catch (e: Exception) {
+                    println("[CommunityRepo] Failed to upload post to Supabase: ${e.message}")
+                    return@withContext Result.failure(Exception("Failed to upload post to cloud: ${e.message}"))
+                }
+            }
+
+            posts.add(0, newPost)
+            com.notify.app.core.SessionManager.saveCachedPosts(posts = posts)
+            Result.success(newPost)
+        } catch (e: Exception) {
+            println("[CommunityRepo] Error in createPost: ${e.message}")
+            Result.failure(e)
+        }
     }
 
     override suspend fun getPostById(postId: String): StudentPost? = withContext(Dispatchers.IO) {
@@ -1045,58 +1075,83 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
     }
 
     override suspend fun addComment(postId: String, content: String): Result<Comment> = withContext(Dispatchers.IO) {
-        purgeExpiredPosts()
-        val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }
-        val user = if (SupabaseClientProvider.isConfigured && !forceMock) {
-            try { SupabaseClientProvider.auth.currentUserOrNull() } catch (_: Throwable) { null }
-        } else null
-        val curProfile = RepositoryLocator.authRepository.currentUserState.value
-        val rawAuthorId = user?.id ?: curProfile?.id
-        val authorId = if (!rawAuthorId.isNullOrBlank() && try { UUID.fromString(rawAuthorId); true } catch (_: Exception) { false }) {
-            rawAuthorId
-        } else {
-            "5349d494-f295-4d76-a51b-e4d657544fc2"
-        }
-        val authorName = curProfile?.fullName ?: "Student"
-
-        val commentId = UUID.randomUUID().toString()
-        val nowIso = isoFormat.format(Date())
-
-        val newComment = Comment(
-            id = commentId,
-            postId = postId,
-            authorId = authorId,
-            content = content.trim(),
-            createdAt = nowIso,
-            author = UserProfile(id = authorId, fullName = authorName)
-        )
-
-        if (SupabaseClientProvider.isConfigured && !forceMock) {
-            try {
-                val commentPayload = buildJsonObject {
-                    put("id", commentId)
-                    put("post_id", postId)
-                    put("author_id", authorId)
-                    put("content", content.trim())
-                }
-                SupabaseClientProvider.postgrest.from("comments").insert(commentPayload)
-                println("[CommunityRepo] Inserted comment $commentId to Supabase")
-            } catch (e: Exception) {
-                println("[CommunityRepo] Failed to upload comment to Supabase: ${e.message}")
+        try {
+            purgeExpiredPosts()
+            val curProfile = RepositoryLocator.authRepository.currentUserState.value
+            val isGuest = curProfile == null || curProfile.id.startsWith("mock-") || curProfile.id.startsWith("pending-")
+            if (!forceMock && isGuest) {
+                return@withContext Result.failure(IllegalStateException("Only signed-in members can post comments. Please sign in."))
             }
+
+            val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val user = if (SupabaseClientProvider.isConfigured && !forceMock) {
+                try { SupabaseClientProvider.auth.currentUserOrNull() } catch (_: Throwable) { null }
+            } else null
+
+            val rawAuthorId = user?.id ?: curProfile?.id
+            val authorId = if (!rawAuthorId.isNullOrBlank() && try { UUID.fromString(rawAuthorId); true } catch (_: Exception) { false }) {
+                rawAuthorId
+            } else {
+                if (forceMock) UUID.randomUUID().toString() else "5349d494-f295-4d76-a51b-e4d657544fc2"
+            }
+            val authorName = curProfile?.fullName?.ifBlank { "Student" } ?: "Student"
+
+            val commentId = UUID.randomUUID().toString()
+            val nowIso = isoFormat.format(Date())
+
+            val newComment = Comment(
+                id = commentId,
+                postId = postId,
+                authorId = authorId,
+                content = content.trim(),
+                createdAt = nowIso,
+                author = UserProfile(id = authorId, fullName = authorName, bio = curProfile?.bio)
+            )
+
+            if (SupabaseClientProvider.isConfigured && !forceMock) {
+                // Ensure author profile exists in profiles table before inserting comment
+                try {
+                    val profilePayload = buildJsonObject {
+                        put("id", authorId)
+                        put("full_name", authorName)
+                        put("bio", curProfile?.bio ?: "Student")
+                    }
+                    SupabaseClientProvider.postgrest.from("profiles").upsert(profilePayload)
+                } catch (e: Exception) {
+                    println("[CommunityRepo] Profile upsert notice: ${e.message}")
+                }
+
+                try {
+                    val commentPayload = buildJsonObject {
+                        put("id", commentId)
+                        put("post_id", postId)
+                        put("author_id", authorId)
+                        put("content", content.trim())
+                        put("status", "PUBLISHED")
+                    }
+                    SupabaseClientProvider.postgrest.from("comments").insert(commentPayload)
+                    println("[CommunityRepo] Inserted comment $commentId to Supabase")
+                } catch (e: Exception) {
+                    println("[CommunityRepo] Failed to upload comment to Supabase: ${e.message}")
+                    return@withContext Result.failure(Exception("Failed to send message: ${e.message}"))
+                }
+            }
+
+            comments.add(newComment)
+
+            // Increment comments count on parent post
+            val idx = posts.indexOfFirst { it.id == postId }
+            if (idx != -1 && idx < posts.size) {
+                posts[idx] = posts[idx].copy(commentsCount = posts[idx].commentsCount + 1)
+            }
+
+            Result.success(newComment)
+        } catch (e: Exception) {
+            println("[CommunityRepo] Error in addComment: ${e.message}")
+            Result.failure(e)
         }
-
-        comments.add(newComment)
-
-        // Increment comments count on parent post
-        val idx = posts.indexOfFirst { it.id == postId }
-        if (idx != -1) {
-            posts[idx] = posts[idx].copy(commentsCount = posts[idx].commentsCount + 1)
-        }
-
-        Result.success(newComment)
     }
 
     override suspend fun toggleReaction(postId: String, reactionType: ReactionType): Result<Unit> = withContext(Dispatchers.IO) {
@@ -1188,7 +1243,9 @@ class NotificationRepositoryImpl : NotificationRepository {
                             put("platform", "android")
                             put("is_active", true)
                         }
-                        SupabaseClientProvider.postgrest.from("device_tokens").upsert(tokenData)
+                        SupabaseClientProvider.postgrest.from("device_tokens").upsert(tokenData) {
+                            onConflict = "token"
+                        }
                         android.util.Log.d("NotificationRepo", "Device token registered to Supabase for ${user.id}")
                     } else {
                         android.util.Log.d("NotificationRepo", "User not logged in yet. Device token cached for login.")

@@ -98,8 +98,8 @@ data class College(
 
 @Serializable
 data class UserProfile(
-    val id: String,
-    @SerialName("full_name") val fullName: String,
+    val id: String = "",
+    @SerialName("full_name") val fullName: String = "Student",
     @SerialName("avatar_url") val avatarUrl: String? = null,
     val bio: String? = null,
     @SerialName("is_system_admin") val isSystemAdmin: Boolean = false,
@@ -169,11 +169,11 @@ data class NoticeExtraction(
 
 @Serializable
 data class StudentPost(
-    val id: String,
-    @SerialName("college_id") val collegeId: String,
-    @SerialName("author_id") val authorId: String,
-    val title: String,
-    val content: String,
+    val id: String = "",
+    @SerialName("college_id") val collegeId: String = "",
+    @SerialName("author_id") val authorId: String = "",
+    val title: String = "",
+    val content: String = "",
     @SerialName("post_type") val postType: PostType = PostType.GENERAL,
     val status: String = "PUBLISHED",
     @SerialName("created_at") val createdAt: String? = null,
@@ -198,10 +198,10 @@ data class PostAttachment(
 
 @Serializable
 data class Comment(
-    val id: String,
-    @SerialName("post_id") val postId: String,
-    @SerialName("author_id") val authorId: String,
-    val content: String,
+    val id: String = "",
+    @SerialName("post_id") val postId: String = "",
+    @SerialName("author_id") val authorId: String = "",
+    val content: String = "",
     @SerialName("created_at") val createdAt: String? = null,
     val author: UserProfile? = null
 )

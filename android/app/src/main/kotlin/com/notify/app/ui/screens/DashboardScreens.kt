@@ -41,6 +41,13 @@ fun HomeDashboardScreen(
     var unreadNotifCount by remember { mutableStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
 
+    val activeDeadlinesCount = remember(notices) {
+        notices.count { !it.extraction?.deadlinesExtracted.isNullOrEmpty() }
+    }
+    val urgentNotice = remember(notices) {
+        notices.firstOrNull { !it.extraction?.deadlinesExtracted.isNullOrEmpty() } ?: notices.firstOrNull()
+    }
+
     LaunchedEffect(activeCollege) {
         val colId = activeCollege?.id ?: "col-alpha-1"
         notices = noticeRepo.getNotices(colId)
@@ -104,42 +111,53 @@ fun HomeDashboardScreen(
         ) {
             // Urgent Alert Card (Deadlines & Critical notices)
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                if (urgentNotice != null) {
+                    val deadlineText = urgentNotice.extraction?.deadlinesExtracted?.firstOrNull()?.let {
+                        "Deadline: ${it.substringBefore("T")}"
+                    } ?: (urgentNotice.publishedAt ?: urgentNotice.firstSeenAt)?.substringBefore("T")?.let { "Published: $it" } ?: "Recent Notice"
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onNavigateToNoticeDetail(urgentNotice.id) },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                Icons.Default.Campaign,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Upcoming Midterm Timetable",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Text(
-                                text = "Exams start Nov 15 • Download hall tickets by Nov 10",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Campaign,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = urgentNotice.title,
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = deadlineText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }
@@ -170,7 +188,7 @@ fun HomeDashboardScreen(
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text("Deadlines Active", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("2", style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.error)
+                            Text("$activeDeadlinesCount", style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.error)
                         }
                     }
                     Card(
@@ -268,7 +286,7 @@ fun HomeDashboardScreen(
                                     )
                                 }
                                 Text(
-                                    text = notice.publishedAt?.substringBefore("T") ?: "Recent",
+                                    text = (notice.publishedAt ?: notice.firstSeenAt)?.substringBefore("T") ?: "Recent",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

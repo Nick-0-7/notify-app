@@ -1,7 +1,8 @@
 {
-  "versionCode": 12,
-  "versionName": "1.0.11",
-  "title": "Notify v1.0.11",
-  "releaseNotes": "- Fixed Supabase Row-Level Security policy for student posts and comments\n- Open posting and browsing for both signed-in Google students and guest mode\n- Restored full notice and community feed sync across all devices",
-  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.11/Notify-v1.0.apk"
+  "versionCode": 13,
+  "versionName": "1.0.12",
+  "title": "Notify v1.0.12",
+  "releaseNotes": "- Fixed system back button navigation to prevent unexpected app exit\n- Restricted Student Hub messaging to signed-in members with guest prompt\n- Fixed app crash on new account post/comment submission\n- Added persistent bookmark storage for live notices\n- Sorted college notices chronologically with accurate crawl date fallbacks\n- Dynamic dashboard active deadline counter and smart alert banner",
+  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.12/Notify-v1.0.apk"
 }
+
