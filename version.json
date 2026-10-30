@@ -1,8 +1,8 @@
 {
-  "versionCode": 14,
-  "versionName": "1.0.13",
-  "title": "Notify v1.0.13",
-  "releaseNotes": "- Added Study Material & PYQ Hub with Branch & Semester filters\n- 1-tap direct upload for question papers and notes with auto-compression\n- Live preview and download of PDFs and scanned documents\n- Upvote & share materials with fellow students\n- Quick access shortcut directly from Home Dashboard",
-  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.13/Notify-v1.0.apk"
+  "versionCode": 15,
+  "versionName": "1.0.14",
+  "title": "Notify v1.0.14",
+  "releaseNotes": "- Streamlined Study Material & PYQ Hub exclusively for Computer Science (CSE)\n- Instant semester-wise filtering (Sem 1 to Sem 8) for CSE subjects\n- 1-tap compressed uploads automatically tagged with Computer Science (CSE)\n- Updated sample curriculum materials with Discrete Math, DBMS, OS, and Computer Networks",
+  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.14/Notify-v1.0.apk"
 }
 

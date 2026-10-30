@@ -54,7 +54,6 @@ fun StudyMaterialScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<MaterialCategory?>(null) }
-    var selectedBranch by remember { mutableStateOf("ALL") }
     var selectedSemester by remember { mutableStateOf(0) } // 0 = All
 
     var materials by remember { mutableStateOf<List<StudyMaterial>>(emptyList()) }
@@ -62,7 +61,6 @@ fun StudyMaterialScreen(
     var showUploadDialog by remember { mutableStateOf(false) }
     var showGuestPrompt by remember { mutableStateOf(false) }
 
-    val branches = listOf("ALL", "CSE", "AIML", "MECH", "CIVIL", "ECE", "ELECTRICAL")
     val semesters = listOf(0, 1, 2, 3, 4, 5, 6, 7, 8)
 
     fun loadMaterials() {
@@ -71,7 +69,7 @@ fun StudyMaterialScreen(
             val colId = activeCollege?.id ?: "b0f5e79d-9f32-44fd-a437-94f04a393088"
             materials = materialRepo.getMaterials(
                 collegeId = colId,
-                branch = if (selectedBranch == "ALL") null else selectedBranch,
+                branch = "CSE",
                 semester = if (selectedSemester == 0) null else selectedSemester,
                 category = selectedCategory,
                 query = searchQuery
@@ -80,7 +78,7 @@ fun StudyMaterialScreen(
         }
     }
 
-    LaunchedEffect(activeCollege, selectedCategory, selectedBranch, selectedSemester, searchQuery) {
+    LaunchedEffect(activeCollege, selectedCategory, selectedSemester, searchQuery) {
         loadMaterials()
     }
 
@@ -89,11 +87,11 @@ fun StudyMaterialScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Study Material & PYQ Hub", fontWeight = FontWeight.Bold)
+                        Text("CSE PYQ & Study Hub", fontWeight = FontWeight.Bold)
                         Text(
-                            text = "${activeCollege?.name?.take(28) ?: "Campus"}...",
+                            text = "${activeCollege?.name?.take(25) ?: "Campus"} • Computer Science",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 },
@@ -178,7 +176,7 @@ fun StudyMaterialScreen(
                 }
             }
 
-            // Branch & Semester Filter Bar
+            // Semester Filter Bar (Sem 1 to 8)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -187,35 +185,34 @@ fun StudyMaterialScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Branch:",
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                branches.forEach { b ->
-                    FilterChip(
-                        selected = selectedBranch == b,
-                        onClick = { selectedBranch = b },
-                        label = { Text(b) }
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "CSE Department",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Sem:",
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                FilterChip(
+                    selected = selectedSemester == 0,
+                    onClick = { selectedSemester = 0 },
+                    label = { Text("All Semesters") }
                 )
-                semesters.forEach { s ->
+
+                semesters.filter { it > 0 }.forEach { s ->
                     FilterChip(
                         selected = selectedSemester == s,
-                        onClick = { selectedSemester = s },
-                        label = { Text(if (s == 0) "All" else "S$s") }
+                        onClick = { selectedSemester = if (selectedSemester == s) 0 else s },
+                        label = { Text("Semester $s") }
                     )
                 }
             }
 
-            Divider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -237,13 +234,13 @@ fun StudyMaterialScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            "No study materials found",
+                            "No CSE materials found",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "Be the first to share a question paper or notes for this branch!",
+                            "Be the first to share a question paper or notes for this CSE semester!",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -570,23 +567,27 @@ fun UploadMaterialDialog(
                     shape = RoundedCornerShape(10.dp)
                 )
 
-                // Branch & Semester
+                // Fixed CSE Department indicator and Semester selector
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
-                        value = branch,
-                        onValueChange = { branch = it.uppercase() },
-                        label = { Text("Branch (e.g. CSE)") },
+                    Surface(
                         modifier = Modifier.weight(1f),
-                        singleLine = true,
+                        color = MaterialTheme.colorScheme.primaryContainer,
                         shape = RoundedCornerShape(10.dp)
-                    )
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text("Branch", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text("Computer Science (CSE)", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                    }
+
                     OutlinedTextField(
                         value = if (semester > 0) semester.toString() else "",
                         onValueChange = { semester = it.toIntOrNull() ?: 1 },
-                        label = { Text("Sem (1-8)") },
+                        label = { Text("Semester (1-8)") },
                         modifier = Modifier.weight(0.7f),
                         singleLine = true,
                         shape = RoundedCornerShape(10.dp)

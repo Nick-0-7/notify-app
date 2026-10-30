@@ -1308,7 +1308,7 @@ class ReportRepositoryImpl : ReportRepository {
 interface MaterialRepository {
     suspend fun getMaterials(
         collegeId: String,
-        branch: String? = null,
+        branch: String? = "CSE",
         semester: Int? = null,
         category: MaterialCategory? = null,
         query: String? = null
@@ -1318,7 +1318,7 @@ interface MaterialRepository {
         collegeId: String,
         title: String,
         subject: String,
-        branch: String,
+        branch: String = "CSE",
         semester: Int,
         category: MaterialCategory,
         fileBytes: ByteArray,
@@ -1353,18 +1353,18 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
                 id = "mat-002",
                 collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
                 authorId = "mock-user-2",
-                title = "Engineering Mathematics III Complete Formula Cheat Sheet",
-                subject = "Mathematics III",
-                branch = "ALL",
+                title = "Discrete Mathematics & Graph Theory Formula Handbook",
+                subject = "Discrete Mathematics",
+                branch = "CSE",
                 semester = 3,
                 category = MaterialCategory.NOTES,
                 fileUrl = "https://www.sitcoe.ac.in/notices/midterm-2026.pdf",
-                fileName = "M3_Formula_Handbook.pdf",
+                fileName = "DMGT_Formula_Handbook.pdf",
                 fileSizeBytes = 724992,
                 mimeType = "application/pdf",
                 likesCount = 92,
                 createdAt = "2026-10-26T11:30:00Z",
-                author = UserProfile(fullName = "Pooja Patil", bio = "Department Topper")
+                author = UserProfile(fullName = "Pooja Patil", bio = "CSE Department Topper")
             ),
             StudyMaterial(
                 id = "mat-003",
@@ -1387,18 +1387,18 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
                 id = "mat-004",
                 collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
                 authorId = "mock-user-4",
-                title = "Design of Machine Elements (DME) Midterm Question Paper 2025",
-                subject = "Machine Elements",
-                branch = "MECH",
+                title = "Computer Networks & Security Winter 2025 Endsem Question Paper",
+                subject = "Computer Networks",
+                branch = "CSE",
                 semester = 6,
                 category = MaterialCategory.PYQ,
                 fileUrl = "https://www.sitcoe.ac.in/notices/midterm-2026.pdf",
-                fileName = "DME_Midterm_2025.pdf",
+                fileName = "CNS_Endsem_Winter2025.pdf",
                 fileSizeBytes = 512000,
                 mimeType = "application/pdf",
                 likesCount = 29,
                 createdAt = "2026-10-28T16:00:00Z",
-                author = UserProfile(fullName = "Vikram Deshmukh", bio = "Mechanical Final Year")
+                author = UserProfile(fullName = "Vikram Deshmukh", bio = "CSE Final Year")
             )
         )
     )
