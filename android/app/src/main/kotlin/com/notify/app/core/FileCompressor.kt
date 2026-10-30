@@ -77,6 +77,11 @@ object FileCompressor {
                     "$originalName.jpg"
                 }
 
+                try {
+                    val dir = java.io.File(context.filesDir, "study_materials").apply { mkdirs() }
+                    java.io.File(dir, safeFileName).writeBytes(compressedBytes)
+                } catch (_: Exception) {}
+
                 Result.success(
                     CompressedFileResult(
                         bytes = compressedBytes,
@@ -98,10 +103,17 @@ object FileCompressor {
                 }
 
                 val safeMime = if (originalName.endsWith(".pdf", ignoreCase = true)) "application/pdf" else detectedMime
+                val safeDocName = originalName.replace(" ", "_")
+
+                try {
+                    val dir = java.io.File(context.filesDir, "study_materials").apply { mkdirs() }
+                    java.io.File(dir, safeDocName).writeBytes(bytes)
+                } catch (_: Exception) {}
+
                 Result.success(
                     CompressedFileResult(
                         bytes = bytes,
-                        fileName = originalName,
+                        fileName = safeDocName,
                         mimeType = safeMime,
                         sizeBytes = bytes.size.toLong(),
                         formattedSize = formatBytes(bytes.size.toLong())

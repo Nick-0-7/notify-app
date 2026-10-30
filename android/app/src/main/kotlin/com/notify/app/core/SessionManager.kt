@@ -15,6 +15,7 @@ object SessionManager {
     private const val KEY_ACTIVE_COLLEGE_ID = "active_college_id"
 
     private var appContext: Context? = null
+    val context: Context? get() = appContext
 
     fun init(context: Context) {
         appContext = context.applicationContext
@@ -102,6 +103,32 @@ object SessionManager {
             jsonHelper.decodeFromString(kotlinx.serialization.builtins.ListSerializer(com.notify.app.domain.models.StudentPost.serializer()), raw)
         } catch (e: Exception) {
             Log.w(TAG, "Error restoring cached posts: ${e.message}")
+            emptyList()
+        }
+    }
+
+    private const val KEY_CACHED_MATERIALS_JSON = "cached_materials_json"
+
+    fun saveCachedMaterials(context: Context? = null, materials: List<com.notify.app.domain.models.StudyMaterial>) {
+        val ctx = context ?: appContext ?: return
+        try {
+            val encoded = jsonHelper.encodeToString(kotlinx.serialization.builtins.ListSerializer(com.notify.app.domain.models.StudyMaterial.serializer()), materials)
+            val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putString(KEY_CACHED_MATERIALS_JSON, encoded).apply()
+            Log.d(TAG, "Cached ${materials.size} study materials locally")
+        } catch (e: Exception) {
+            Log.w(TAG, "Error caching study materials: ${e.message}")
+        }
+    }
+
+    fun getCachedMaterials(context: Context? = null): List<com.notify.app.domain.models.StudyMaterial> {
+        val ctx = context ?: appContext ?: return emptyList()
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val raw = prefs.getString(KEY_CACHED_MATERIALS_JSON, null) ?: return emptyList()
+        return try {
+            jsonHelper.decodeFromString(kotlinx.serialization.builtins.ListSerializer(com.notify.app.domain.models.StudyMaterial.serializer()), raw)
+        } catch (e: Exception) {
+            Log.w(TAG, "Error restoring cached materials: ${e.message}")
             emptyList()
         }
     }

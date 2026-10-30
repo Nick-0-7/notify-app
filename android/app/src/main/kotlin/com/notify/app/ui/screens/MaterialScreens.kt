@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.notify.app.core.CompressedFileResult
 import com.notify.app.core.FileCompressor
+import com.notify.app.core.MaterialViewer
 import com.notify.app.data.repositories.RepositoryLocator
 import com.notify.app.domain.models.MaterialCategory
 import com.notify.app.domain.models.StudyMaterial
@@ -355,12 +356,7 @@ fun StudyMaterialScreen(
                                 ) {
                                     FilledTonalButton(
                                         onClick = {
-                                            try {
-                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(mat.fileUrl))
-                                                context.startActivity(intent)
-                                            } catch (e: Exception) {
-                                                Toast.makeText(context, "Cannot open file: ${e.message}", Toast.LENGTH_SHORT).show()
-                                            }
+                                            MaterialViewer.openMaterial(context, mat, scope)
                                         },
                                         shape = RoundedCornerShape(10.dp),
                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
@@ -408,15 +404,7 @@ fun StudyMaterialScreen(
                                         // Share button
                                         IconButton(
                                             onClick = {
-                                                val shareIntent = Intent().apply {
-                                                    action = Intent.ACTION_SEND
-                                                    putExtra(
-                                                        Intent.EXTRA_TEXT,
-                                                        "📚 ${mat.title} (${mat.subject} - ${mat.branch})\n\nDownload / View: ${mat.fileUrl}\n\nShared via Notify App"
-                                                    )
-                                                    type = "text/plain"
-                                                }
-                                                context.startActivity(Intent.createChooser(shareIntent, "Share Study Material"))
+                                                MaterialViewer.shareMaterial(context, mat)
                                             }
                                         ) {
                                             Icon(Icons.Default.Share, contentDescription = "Share", modifier = Modifier.size(18.dp))

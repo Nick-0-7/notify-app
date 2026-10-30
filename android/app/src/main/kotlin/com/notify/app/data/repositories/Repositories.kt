@@ -1410,6 +1410,13 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
         category: MaterialCategory?,
         query: String?
     ): List<StudyMaterial> = withContext(Dispatchers.IO) {
+        val cached = com.notify.app.core.SessionManager.getCachedMaterials()
+        if (cached.isNotEmpty()) {
+            val merged = (cached + materials).distinctBy { it.id }
+            materials.clear()
+            materials.addAll(merged)
+        }
+
         val baseList: List<StudyMaterial> = if (SupabaseClientProvider.isConfigured && !forceMock) {
             try {
                 val live = SupabaseClientProvider.postgrest.from("study_materials")
@@ -1419,7 +1426,11 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
                         }
                     }.decodeList<StudyMaterial>()
                 if (live.isNotEmpty()) {
-                    (live + materials).distinctBy { it.id }
+                    val fullList = (live + materials).distinctBy { it.id }
+                    materials.clear()
+                    materials.addAll(fullList)
+                    com.notify.app.core.SessionManager.saveCachedMaterials(null, fullList)
+                    fullList
                 } else {
                     materials
                 }
@@ -1461,21 +1472,37 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
         val matId = UUID.randomUUID().toString()
         val safeFileName = fileName.replace(" ", "_")
         val storagePath = "$collegeId/${matId}_$safeFileName"
-        var finalUrl = "https://www.sitcoe.ac.in/notices/$safeFileName"
+
+        // 1. Persist uploaded file bytes directly to local storage for instant offline viewing via FileProvider
+        val ctx = com.notify.app.core.SessionManager.context
+        var localFilePath: String? = null
+        if (ctx != null) {
+            try {
+                val dir = java.io.File(ctx.filesDir, "study_materials").apply { mkdirs() }
+                val localFile = java.io.File(dir, "${matId}_$safeFileName")
+                localFile.writeBytes(fileBytes)
+                java.io.File(dir, safeFileName).writeBytes(fileBytes)
+                localFilePath = localFile.absolutePath
+            } catch (ioErr: Exception) {
+                android.util.Log.w("MaterialRepo", "Local file save warning: ${ioErr.message}")
+            }
+        }
+
+        var finalUrl = if (localFilePath != null) "file://$localFilePath" else "${SupabaseClientProvider.supabaseUrl}/storage/v1/object/public/study_materials/$storagePath"
 
         if (SupabaseClientProvider.isConfigured && !forceMock) {
             try {
-                // 1. Upload to Supabase Storage bucket 'study_materials'
+                // Upload to Supabase Storage bucket 'study_materials'
                 try {
                     SupabaseClientProvider.storage.from("study_materials").upload(storagePath, fileBytes) {
                         upsert = true
                     }
                     finalUrl = SupabaseClientProvider.storage.from("study_materials").publicUrl(storagePath)
                 } catch (stErr: Exception) {
-                    android.util.Log.w("MaterialRepo", "Storage upload notice (fallback url): ${stErr.message}")
+                    android.util.Log.w("MaterialRepo", "Supabase storage upload notice: ${stErr.message}")
                 }
 
-                // 2. Insert metadata into study_materials table
+                // Insert metadata into study_materials table
                 val payload = buildJsonObject {
                     put("id", matId)
                     put("college_id", collegeId)
@@ -1517,6 +1544,7 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
             author = curProfileOrFallback(curUser)
         )
         materials.add(0, newMat)
+        com.notify.app.core.SessionManager.saveCachedMaterials(null, materials)
         Result.success(newMat)
     }
 
@@ -1530,6 +1558,7 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
             val item = materials[idx]
             val newCount = item.likesCount + 1
             materials[idx] = item.copy(likesCount = newCount)
+            com.notify.app.core.SessionManager.saveCachedMaterials(null, materials)
             Result.success(newCount)
         } else {
             Result.failure(Exception("Material not found"))
