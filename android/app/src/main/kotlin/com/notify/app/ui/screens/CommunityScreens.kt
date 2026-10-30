@@ -324,13 +324,25 @@ fun StudentCommunityScreen(
                                 ) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
                                         val isCardHelpful = post.userReaction == ReactionType.HELPFUL
-                                        val count = post.reactionsCount["HELPFUL"] ?: post.reactionsCount.values.sum()
+                                        val count = post.reactionsCount["HELPFUL"] ?: (if (isCardHelpful) 1 else 0)
                                         Surface(
                                             onClick = {
+                                                if (isGuest) {
+                                                    onNavigateToAuth()
+                                                    return@Surface
+                                                }
+                                                val nextIsHelpful = !isCardHelpful
+                                                val nextCount = if (nextIsHelpful) (count + 1) else (count - 1).coerceAtLeast(0)
+                                                posts = posts.map { p ->
+                                                    if (p.id == post.id) {
+                                                        p.copy(
+                                                            userReaction = if (nextIsHelpful) ReactionType.HELPFUL else null,
+                                                            reactionsCount = mapOf("HELPFUL" to nextCount)
+                                                        )
+                                                    } else p
+                                                }
                                                 scope.launch {
                                                     communityRepo.toggleReaction(post.id, ReactionType.HELPFUL)
-                                                    val colId = activeCollege?.id ?: "b0f5e79d-9f32-44fd-a437-94f04a393088"
-                                                    posts = communityRepo.getPosts(colId, selectedType)
                                                 }
                                             },
                                             shape = RoundedCornerShape(8.dp),
@@ -348,7 +360,7 @@ fun StudentCommunityScreen(
                                                 )
                                                 Spacer(modifier = Modifier.width(4.dp))
                                                 Text(
-                                                    if (count > 0) "$count Helpful" else "Helpful",
+                                                    "$count Helpful",
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = if (isCardHelpful) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
@@ -604,13 +616,16 @@ fun PostDetailScreen(
     var isSending by remember { mutableStateOf(false) }
     var commentError by remember { mutableStateOf<String?>(null) }
     var isLiked by remember { mutableStateOf(false) }
+    var helpfulCount by remember { mutableIntStateOf(0) }
 
     fun refresh() {
         scope.launch {
             try {
                 val fetched = communityRepo.getPostById(postId)
                 post = fetched
-                isLiked = fetched?.userReaction == ReactionType.HELPFUL
+                val liked = fetched?.userReaction == ReactionType.HELPFUL
+                isLiked = liked
+                helpfulCount = fetched?.reactionsCount?.get("HELPFUL") ?: (if (liked) 1 else 0)
                 comments = communityRepo.getComments(postId)
             } catch (e: Exception) {
                 android.util.Log.e("PostDetail", "Error loading discussion: ${e.message}")
@@ -846,17 +861,23 @@ fun PostDetailScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    val helpfulCount = currentPost.reactionsCount["HELPFUL"] ?: (if (isLiked) 1 else 0)
                                     FilledTonalButton(
                                         onClick = {
                                             if (isGuest) {
                                                 onNavigateToAuth()
                                                 return@FilledTonalButton
                                             }
-                                            isLiked = !isLiked
+                                            val willBeLiked = !isLiked
+                                            isLiked = willBeLiked
+                                            helpfulCount = if (willBeLiked) (helpfulCount + 1) else (helpfulCount - 1).coerceAtLeast(0)
                                             scope.launch {
                                                 communityRepo.toggleReaction(postId, ReactionType.HELPFUL)
-                                                post = communityRepo.getPostById(postId)
+                                                val updated = communityRepo.getPostById(postId)
+                                                if (updated != null) {
+                                                    post = updated
+                                                    isLiked = updated.userReaction == ReactionType.HELPFUL
+                                                    helpfulCount = updated.reactionsCount["HELPFUL"] ?: (if (isLiked) 1 else 0)
+                                                }
                                             }
                                         },
                                         colors = ButtonDefaults.filledTonalButtonColors(
@@ -870,7 +891,7 @@ fun PostDetailScreen(
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
-                                        Text(if (helpfulCount > 0) "Helpful ($helpfulCount)" else "Helpful")
+                                        Text("Helpful ($helpfulCount)")
                                     }
                                 }
                                 Text(

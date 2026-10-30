@@ -1,7 +1,7 @@
 {
-  "versionCode": 20,
-  "versionName": "1.0.19",
-  "title": "Notify v1.0.19",
-  "releaseNotes": "- Fixed notification inbox: real-time college notice sync, mark all as read, and clear all actions\n- Automatic push notification routing to in-app notification inbox\n- Fixed discussion Helpful button: live dynamic counts and instant reaction toggle in feeds and discussion view",
-  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.19/Notify-v1.0.apk"
+  "versionCode": 21,
+  "versionName": "1.0.20",
+  "title": "Notify v1.0.20",
+  "releaseNotes": "- Fixed discussion Helpful button: accurate live reaction counts, instant feedback on toggle, and persistent count synchronization across feed and discussion screens",
+  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.20/Notify-v1.0.apk"
 }

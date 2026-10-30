@@ -956,10 +956,22 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
                     }.decodeList<StudentPost>()
                 if (live.isNotEmpty()) {
                     val filtered = live.filter { !isExpired(it.createdAt) }
+                    val currentMap = posts.associateBy { it.id }
+                    val cachedMap = SessionManager.getCachedPosts().associateBy { it.id }
+                    val merged = filtered.map { p ->
+                        val existing = currentMap[p.id] ?: cachedMap[p.id]
+                        if (existing != null) {
+                            p.copy(
+                                reactionsCount = existing.reactionsCount,
+                                userReaction = existing.userReaction,
+                                commentsCount = if (p.commentsCount > 0) p.commentsCount else existing.commentsCount
+                            )
+                        } else p
+                    }
                     posts.clear()
-                    posts.addAll(filtered)
-                    com.notify.app.core.SessionManager.saveCachedPosts(posts = filtered)
-                    filtered
+                    posts.addAll(merged)
+                    SessionManager.saveCachedPosts(posts = merged)
+                    merged
                 } else {
                     val cached = com.notify.app.core.SessionManager.getCachedPosts().filter { !isExpired(it.createdAt) }
                     if (cached.isNotEmpty()) {
@@ -1084,6 +1096,12 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
         val cached = posts.find { it.id == postId && !isExpired(it.createdAt) }
         if (cached != null) return@withContext cached
 
+        val fromSession = SessionManager.getCachedPosts().find { it.id == postId && !isExpired(it.createdAt) }
+        if (fromSession != null) {
+            posts.add(fromSession)
+            return@withContext fromSession
+        }
+
         if (SupabaseClientProvider.isConfigured && !forceMock) {
             try {
                 val live = SupabaseClientProvider.postgrest.from("student_posts")
@@ -1091,7 +1109,16 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
                         filter { eq("id", postId) }
                     }.decodeList<StudentPost>().firstOrNull()
                 if (live != null && !isExpired(live.createdAt)) {
-                    return@withContext live
+                    val existing = SessionManager.getCachedPosts().find { it.id == live.id }
+                    val finalPost = if (existing != null) {
+                        live.copy(
+                            reactionsCount = existing.reactionsCount,
+                            userReaction = existing.userReaction,
+                            commentsCount = if (live.commentsCount > 0) live.commentsCount else existing.commentsCount
+                        )
+                    } else live
+                    posts.add(finalPost)
+                    return@withContext finalPost
                 }
             } catch (_: Exception) {}
         }
@@ -1197,11 +1224,29 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
 
     override suspend fun toggleReaction(postId: String, reactionType: ReactionType): Result<Unit> = withContext(Dispatchers.IO) {
         purgeExpiredPosts()
-        val idx = posts.indexOfFirst { it.id == postId }
+        var idx = posts.indexOfFirst { it.id == postId }
+        if (idx == -1) {
+            val cached = SessionManager.getCachedPosts().find { it.id == postId }
+            if (cached != null) {
+                posts.add(cached)
+                idx = posts.lastIndex
+            } else if (SupabaseClientProvider.isConfigured && !forceMock) {
+                try {
+                    val live = SupabaseClientProvider.postgrest.from("student_posts")
+                        .select(io.github.jan.supabase.postgrest.query.Columns.raw("*, author:profiles!student_posts_author_id_fkey(*)")) {
+                            filter { eq("id", postId) }
+                        }.decodeList<StudentPost>().firstOrNull()
+                    if (live != null) {
+                        posts.add(live)
+                        idx = posts.lastIndex
+                    }
+                } catch (_: Exception) {}
+            }
+        }
         if (idx != -1) {
             val currentPost = posts[idx]
             val key = reactionType.name
-            val currentCount = currentPost.reactionsCount[key] ?: 0
+            val currentCount = currentPost.reactionsCount[key] ?: (if (currentPost.userReaction == reactionType) 1 else 0)
             val newMap = currentPost.reactionsCount.toMutableMap()
             if (currentPost.userReaction == reactionType) {
                 newMap[key] = (currentCount - 1).coerceAtLeast(0)
