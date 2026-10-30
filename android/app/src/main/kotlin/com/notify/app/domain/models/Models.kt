@@ -243,3 +243,31 @@ data class ContentReport(
     val details: String? = null,
     val status: String = "PENDING"
 )
+
+@Serializable
+enum class MaterialCategory {
+    @SerialName("PYQ") PYQ,
+    @SerialName("NOTES") NOTES,
+    @SerialName("LAB_MANUAL") LAB_MANUAL,
+    @SerialName("SYLLABUS") SYLLABUS
+}
+
+@Serializable
+data class StudyMaterial(
+    val id: String = "",
+    @SerialName("college_id") val collegeId: String = "",
+    @SerialName("author_id") val authorId: String = "",
+    val title: String = "",
+    val subject: String = "",
+    val branch: String = "ALL",
+    val semester: Int = 1,
+    val category: MaterialCategory = MaterialCategory.PYQ,
+    @SerialName("file_url") val fileUrl: String = "",
+    @SerialName("file_name") val fileName: String = "",
+    @SerialName("file_size_bytes") val fileSizeBytes: Long = 0,
+    @SerialName("mime_type") val mimeType: String = "application/pdf",
+    @SerialName("likes_count") val likesCount: Int = 0,
+    @SerialName("created_at") val createdAt: String? = null,
+    val author: UserProfile? = null
+)
+

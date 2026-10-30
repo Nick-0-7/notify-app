@@ -29,6 +29,7 @@ sealed class Screen(val route: String) {
     data class PostDetail(val postId: String) : Screen("post_detail/$postId")
     object NotificationInbox : Screen("inbox")
     object Bookmarks : Screen("bookmarks")
+    object StudyMaterials : Screen("study_materials")
     data class ReportContent(val targetType: ReportTarget, val targetId: String) : Screen("report")
     object AdminModeration : Screen("admin")
 }
@@ -120,6 +121,7 @@ fun AppNavigation(
                     onNavigateToSources = { navigateTo(Screen.SourceManagement) },
                     onNavigateToNotifications = { navigateTo(Screen.NotificationInbox) },
                     onNavigateToBookmarks = { navigateTo(Screen.Bookmarks) },
+                    onNavigateToMaterials = { navigateTo(Screen.StudyMaterials) },
                     onSwitchCollege = { navigateTo(Screen.CollegeSelect) },
                     onNavigateToCreatePost = { navigateTo(Screen.CreatePost) },
                     onNavigateToPostDetail = { postId -> navigateTo(Screen.PostDetail(postId)) },
@@ -182,6 +184,12 @@ fun AppNavigation(
                     onBack = { popBack() }
                 )
             }
+            is Screen.StudyMaterials -> {
+                StudyMaterialScreen(
+                    onBack = { popBack() },
+                    onNavigateToAuth = { navigateTo(Screen.Auth) }
+                )
+            }
         }
     }
 }
@@ -192,6 +200,7 @@ fun MainContainerScreen(
     onNavigateToSources: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToBookmarks: () -> Unit,
+    onNavigateToMaterials: () -> Unit,
     onSwitchCollege: () -> Unit,
     onNavigateToCreatePost: () -> Unit,
     onNavigateToPostDetail: (String) -> Unit,
@@ -247,7 +256,8 @@ fun MainContainerScreen(
                     onNavigateToSources = onNavigateToSources,
                     onNavigateToNotifications = onNavigateToNotifications,
                     onNavigateToBookmarks = onNavigateToBookmarks,
-                    onSwitchCollege = onSwitchCollege
+                    onSwitchCollege = onSwitchCollege,
+                    onNavigateToMaterials = onNavigateToMaterials
                 )
                 BottomTab.NOTICES -> NoticeFeedScreen(
                     onNavigateToNoticeDetail = onNavigateToNoticeDetail

@@ -1302,6 +1302,241 @@ class ReportRepositoryImpl : ReportRepository {
     }
 }
 
+// ==========================================
+// 8. STUDY MATERIAL & PYQ REPOSITORY
+// ==========================================
+interface MaterialRepository {
+    suspend fun getMaterials(
+        collegeId: String,
+        branch: String? = null,
+        semester: Int? = null,
+        category: MaterialCategory? = null,
+        query: String? = null
+    ): List<StudyMaterial>
+
+    suspend fun uploadMaterial(
+        collegeId: String,
+        title: String,
+        subject: String,
+        branch: String,
+        semester: Int,
+        category: MaterialCategory,
+        fileBytes: ByteArray,
+        fileName: String,
+        mimeType: String
+    ): Result<StudyMaterial>
+
+    suspend fun likeMaterial(materialId: String): Result<Int>
+}
+
+class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialRepository {
+    private val materials = CopyOnWriteArrayList<StudyMaterial>(
+        listOf(
+            StudyMaterial(
+                id = "mat-001",
+                collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
+                authorId = "mock-user-1",
+                title = "Winter 2025 Operating Systems Endsem Question Paper",
+                subject = "Operating Systems",
+                branch = "CSE",
+                semester = 5,
+                category = MaterialCategory.PYQ,
+                fileUrl = "https://www.sitcoe.ac.in/notices/midterm-2026.pdf",
+                fileName = "OS_Endsem_Winter2025.pdf",
+                fileSizeBytes = 458752,
+                mimeType = "application/pdf",
+                likesCount = 38,
+                createdAt = "2026-10-25T14:00:00Z",
+                author = UserProfile(fullName = "Akash Shinde", bio = "TY CSE Student")
+            ),
+            StudyMaterial(
+                id = "mat-002",
+                collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
+                authorId = "mock-user-2",
+                title = "Engineering Mathematics III Complete Formula Cheat Sheet",
+                subject = "Mathematics III",
+                branch = "ALL",
+                semester = 3,
+                category = MaterialCategory.NOTES,
+                fileUrl = "https://www.sitcoe.ac.in/notices/midterm-2026.pdf",
+                fileName = "M3_Formula_Handbook.pdf",
+                fileSizeBytes = 724992,
+                mimeType = "application/pdf",
+                likesCount = 92,
+                createdAt = "2026-10-26T11:30:00Z",
+                author = UserProfile(fullName = "Pooja Patil", bio = "Department Topper")
+            ),
+            StudyMaterial(
+                id = "mat-003",
+                collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
+                authorId = "mock-user-3",
+                title = "Database Management Systems Lab Manual & SQL Queries",
+                subject = "DBMS",
+                branch = "CSE",
+                semester = 4,
+                category = MaterialCategory.LAB_MANUAL,
+                fileUrl = "https://www.sitcoe.ac.in/notices/midterm-2026.pdf",
+                fileName = "DBMS_Lab_Manual_2026.pdf",
+                fileSizeBytes = 891289,
+                mimeType = "application/pdf",
+                likesCount = 45,
+                createdAt = "2026-10-27T09:15:00Z",
+                author = UserProfile(fullName = "Rohan Kulkarni", bio = "SY CSE")
+            ),
+            StudyMaterial(
+                id = "mat-004",
+                collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
+                authorId = "mock-user-4",
+                title = "Design of Machine Elements (DME) Midterm Question Paper 2025",
+                subject = "Machine Elements",
+                branch = "MECH",
+                semester = 6,
+                category = MaterialCategory.PYQ,
+                fileUrl = "https://www.sitcoe.ac.in/notices/midterm-2026.pdf",
+                fileName = "DME_Midterm_2025.pdf",
+                fileSizeBytes = 512000,
+                mimeType = "application/pdf",
+                likesCount = 29,
+                createdAt = "2026-10-28T16:00:00Z",
+                author = UserProfile(fullName = "Vikram Deshmukh", bio = "Mechanical Final Year")
+            )
+        )
+    )
+
+    override suspend fun getMaterials(
+        collegeId: String,
+        branch: String?,
+        semester: Int?,
+        category: MaterialCategory?,
+        query: String?
+    ): List<StudyMaterial> = withContext(Dispatchers.IO) {
+        val baseList: List<StudyMaterial> = if (SupabaseClientProvider.isConfigured && !forceMock) {
+            try {
+                val live = SupabaseClientProvider.postgrest.from("study_materials")
+                    .select {
+                        filter {
+                            eq("college_id", collegeId)
+                        }
+                    }.decodeList<StudyMaterial>()
+                if (live.isNotEmpty()) {
+                    (live + materials).distinctBy { it.id }
+                } else {
+                    materials
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("MaterialRepo", "Supabase getMaterials notice: ${e.message}")
+                materials
+            }
+        } else {
+            materials
+        }
+
+        baseList.filter { item ->
+            val matchCollege = item.collegeId == collegeId || collegeId == "col-alpha-1"
+            val matchBranch = branch.isNullOrBlank() || branch.equals("ALL", ignoreCase = true) || item.branch.equals("ALL", ignoreCase = true) || item.branch.equals(branch, ignoreCase = true)
+            val matchSemester = semester == null || semester == 0 || item.semester == semester
+            val matchCategory = category == null || item.category == category
+            val matchQuery = query.isNullOrBlank() ||
+                    item.title.contains(query, ignoreCase = true) ||
+                    item.subject.contains(query, ignoreCase = true) ||
+                    item.branch.contains(query, ignoreCase = true)
+
+            matchCollege && matchBranch && matchSemester && matchCategory && matchQuery
+        }.sortedByDescending { it.createdAt ?: "" }
+    }
+
+    override suspend fun uploadMaterial(
+        collegeId: String,
+        title: String,
+        subject: String,
+        branch: String,
+        semester: Int,
+        category: MaterialCategory,
+        fileBytes: ByteArray,
+        fileName: String,
+        mimeType: String
+    ): Result<StudyMaterial> = withContext(Dispatchers.IO) {
+        val curUser = RepositoryLocator.authRepository.currentUserState.value
+        val actualUid = curUser?.id?.takeIf { !it.startsWith("mock-") } ?: "f8ba1cd8-d42b-4132-829b-e8f6dc453259"
+        val matId = UUID.randomUUID().toString()
+        val safeFileName = fileName.replace(" ", "_")
+        val storagePath = "$collegeId/${matId}_$safeFileName"
+        var finalUrl = "https://www.sitcoe.ac.in/notices/$safeFileName"
+
+        if (SupabaseClientProvider.isConfigured && !forceMock) {
+            try {
+                // 1. Upload to Supabase Storage bucket 'study_materials'
+                try {
+                    SupabaseClientProvider.storage.from("study_materials").upload(storagePath, fileBytes) {
+                        upsert = true
+                    }
+                    finalUrl = SupabaseClientProvider.storage.from("study_materials").publicUrl(storagePath)
+                } catch (stErr: Exception) {
+                    android.util.Log.w("MaterialRepo", "Storage upload notice (fallback url): ${stErr.message}")
+                }
+
+                // 2. Insert metadata into study_materials table
+                val payload = buildJsonObject {
+                    put("id", matId)
+                    put("college_id", collegeId)
+                    put("author_id", actualUid)
+                    put("title", title)
+                    put("subject", subject)
+                    put("branch", branch.uppercase())
+                    put("semester", semester)
+                    put("category", category.name)
+                    put("file_url", finalUrl)
+                    put("file_name", safeFileName)
+                    put("file_size_bytes", fileBytes.size.toLong())
+                    put("mime_type", mimeType)
+                    put("likes_count", 0)
+                }
+                SupabaseClientProvider.postgrest.from("study_materials").insert(payload)
+            } catch (e: Exception) {
+                android.util.Log.e("MaterialRepo", "Failed to sync study material to Supabase: ${e.message}")
+            }
+        }
+
+        val newMat = StudyMaterial(
+            id = matId,
+            collegeId = collegeId,
+            authorId = actualUid,
+            title = title,
+            subject = subject,
+            branch = branch.uppercase(),
+            semester = semester,
+            category = category,
+            fileUrl = finalUrl,
+            fileName = safeFileName,
+            fileSizeBytes = fileBytes.size.toLong(),
+            mimeType = mimeType,
+            likesCount = 0,
+            createdAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }.format(Date()),
+            author = curProfileOrFallback(curUser)
+        )
+        materials.add(0, newMat)
+        Result.success(newMat)
+    }
+
+    private fun curProfileOrFallback(user: UserProfile?): UserProfile {
+        return user ?: UserProfile(fullName = "Verified Student", bio = "Campus Contributor")
+    }
+
+    override suspend fun likeMaterial(materialId: String): Result<Int> = withContext(Dispatchers.IO) {
+        val idx = materials.indexOfFirst { it.id == materialId }
+        if (idx != -1) {
+            val item = materials[idx]
+            val newCount = item.likesCount + 1
+            materials[idx] = item.copy(likesCount = newCount)
+            Result.success(newCount)
+        } else {
+            Result.failure(Exception("Material not found"))
+        }
+    }
+}
+
 // Single instance locator for MVVM ViewModels
 object RepositoryLocator {
     val authRepository: AuthRepository by lazy { AuthRepositoryImpl() }
@@ -1311,4 +1546,6 @@ object RepositoryLocator {
     val communityRepository: CommunityRepository by lazy { CommunityRepositoryImpl() }
     val notificationRepository: NotificationRepository by lazy { NotificationRepositoryImpl() }
     val reportRepository: ReportRepository by lazy { ReportRepositoryImpl() }
+    val materialRepository: MaterialRepository by lazy { MaterialRepositoryImpl() }
 }
+

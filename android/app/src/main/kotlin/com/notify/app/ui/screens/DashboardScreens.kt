@@ -30,7 +30,8 @@ fun HomeDashboardScreen(
     onNavigateToSources: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToBookmarks: () -> Unit,
-    onSwitchCollege: () -> Unit
+    onSwitchCollege: () -> Unit,
+    onNavigateToMaterials: () -> Unit = {}
 ) {
     val collegeRepo = RepositoryLocator.collegeRepository
     val noticeRepo = RepositoryLocator.noticeRepository
@@ -209,25 +210,37 @@ fun HomeDashboardScreen(
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
                         onClick = onNavigateToSources,
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f).padding(end = 6.dp)
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                     ) {
                         Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text("Sources", maxLines = 1)
+                    }
+                    Button(
+                        onClick = onNavigateToMaterials,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1.2f),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("PYQ Hub", maxLines = 1)
                     }
                     OutlinedButton(
                         onClick = onNavigateToCommunityTab,
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f).padding(start = 6.dp)
+                        modifier = Modifier.weight(1.1f),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                     ) {
                         Icon(Icons.Default.Forum, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Student Hub", maxLines = 1)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Hub", maxLines = 1)
                     }
                 }
             }
