@@ -47,6 +47,21 @@ class NotifyFirebaseMessagingService : FirebaseMessagingService() {
 
         val notificationId = (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
 
+        // Save into local notification inbox
+        val userNotif = com.notify.app.domain.models.UserNotification(
+            id = "fcm_$notificationId",
+            userId = SessionManager.getSavedProfile(applicationContext)?.id ?: "guest",
+            noticeId = if (noticeId == "general" || noticeId.isBlank()) null else noticeId,
+            title = title,
+            body = body,
+            notificationType = if (isHighPriority) "ALERT" else "NEW_NOTICE",
+            isRead = false,
+            createdAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
+        )
+        SessionManager.addNotification(applicationContext, userNotif)
+
         NotificationHelper.showNoticeNotification(
             context = applicationContext,
             notificationId = notificationId,

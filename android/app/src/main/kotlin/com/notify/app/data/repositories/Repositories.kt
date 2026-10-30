@@ -1,5 +1,6 @@
 package com.notify.app.data.repositories
 
+import com.notify.app.core.SessionManager
 import com.notify.app.core.SupabaseClientProvider
 import com.notify.app.domain.models.*
 import io.github.jan.supabase.auth.auth
@@ -1209,6 +1210,7 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
                 newMap[key] = currentCount + 1
                 posts[idx] = currentPost.copy(reactionsCount = newMap, userReaction = reactionType)
             }
+            SessionManager.saveCachedPosts(posts = posts.toList())
         }
         Result.success(Unit)
     }
@@ -1223,6 +1225,7 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
         }
         posts.removeAll { it.id == postId }
         comments.removeAll { it.postId == postId }
+        SessionManager.saveCachedPosts(posts = posts.toList())
         Result.success(Unit)
     }
 }
@@ -1233,42 +1236,102 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
 interface NotificationRepository {
     suspend fun getNotifications(): List<UserNotification>
     suspend fun markAsRead(notificationId: String)
+    suspend fun markAllAsRead()
+    suspend fun clearAll()
     suspend fun registerDeviceToken(token: String)
 }
 
-class NotificationRepositoryImpl : NotificationRepository {
-    private val notifications = mutableListOf(
-        UserNotification(
-            id = "notif-1",
-            userId = "mock-user-1",
-            noticeId = "not-001",
-            title = "New Notice: Fall 2026 Midterm Schedule",
-            body = "The examination timetable has been published. Exams begin Nov 15.",
-            isRead = false,
-            deepLink = "notify://notice/not-001",
-            createdAt = "10 minutes ago"
-        ),
-        UserNotification(
-            id = "notif-2",
-            userId = "mock-user-1",
-            noticeId = "not-002",
-            title = "Placement Alert: Google Cloud Recruitment",
-            body = "Software engineering internships open for 3rd and 4th year students.",
-            isRead = true,
-            deepLink = "notify://notice/not-002",
-            createdAt = "2 hours ago"
-        )
-    )
+class NotificationRepositoryImpl(
+    private val customNoticeRepository: NoticeRepository? = null
+) : NotificationRepository {
+    private val notifications = CopyOnWriteArrayList<UserNotification>()
+    private val inMemoryReadIds = CopyOnWriteArraySet<String>()
 
     override suspend fun getNotifications(): List<UserNotification> = withContext(Dispatchers.IO) {
-        notifications
+        val ctx = com.notify.app.core.SessionManager.context
+        val cached = com.notify.app.core.SessionManager.getCachedNotifications(ctx)
+        val readIds = com.notify.app.core.SessionManager.getReadNotificationIds(ctx) + inMemoryReadIds
+
+        // Sync real college notices into inbox notifications
+        val colId = com.notify.app.core.SessionManager.getActiveCollegeId(ctx) ?: "b0f5e79d-9f32-44fd-a437-94f04a393088"
+        val realNotices = try {
+            val repo = customNoticeRepository ?: RepositoryLocator.noticeRepository
+            repo.getNotices(colId)
+        } catch (_: Throwable) {
+            emptyList()
+        }
+
+        val noticeNotifs = realNotices.take(20).map { n ->
+            val notifId = "notice_${n.id}"
+            val bodyText = if (n.rawContent.isNotBlank()) {
+                if (n.rawContent.length > 120) n.rawContent.take(117) + "..." else n.rawContent
+            } else {
+                "New official update published on SITCOE notice board."
+            }
+            UserNotification(
+                id = notifId,
+                userId = "student",
+                noticeId = n.id,
+                title = n.title,
+                body = bodyText,
+                notificationType = "NEW_NOTICE",
+                isRead = readIds.contains(notifId) || readIds.contains(n.id),
+                readAt = null,
+                deepLink = "notify://notice/${n.id}",
+                createdAt = n.publishedAt ?: n.firstSeenAt ?: "Recently"
+            )
+        }
+
+        val combined = (cached + noticeNotifs).distinctBy { it.id }.sortedByDescending { it.createdAt ?: "" }.toMutableList()
+        if (combined.isEmpty()) {
+            combined.add(
+                UserNotification(
+                    id = "welcome_notif",
+                    userId = "student",
+                    noticeId = null,
+                    title = "Welcome to Notify Campus Hub",
+                    body = "Official SITCOE notices, study material updates, and student announcements will appear here.",
+                    notificationType = "ALERT",
+                    isRead = readIds.contains("welcome_notif"),
+                    createdAt = "Today"
+                )
+            )
+        }
+
+        notifications.clear()
+        notifications.addAll(combined)
+        com.notify.app.core.SessionManager.saveCachedNotifications(ctx, combined)
+        combined
     }
 
     override suspend fun markAsRead(notificationId: String) {
+        inMemoryReadIds.add(notificationId)
+        val ctx = com.notify.app.core.SessionManager.context
+        com.notify.app.core.SessionManager.markNotificationAsRead(ctx, notificationId)
         val idx = notifications.indexOfFirst { it.id == notificationId }
         if (idx != -1) {
             notifications[idx] = notifications[idx].copy(isRead = true)
         }
+    }
+
+    override suspend fun markAllAsRead() {
+        val ctx = com.notify.app.core.SessionManager.context
+        notifications.forEach {
+            inMemoryReadIds.add(it.id)
+            if (it.noticeId != null) inMemoryReadIds.add(it.noticeId)
+            com.notify.app.core.SessionManager.markNotificationAsRead(ctx, it.id)
+        }
+        val updated = notifications.map { it.copy(isRead = true) }
+        notifications.clear()
+        notifications.addAll(updated)
+        com.notify.app.core.SessionManager.saveCachedNotifications(ctx, updated)
+    }
+
+    override suspend fun clearAll() {
+        inMemoryReadIds.clear()
+        val ctx = com.notify.app.core.SessionManager.context
+        com.notify.app.core.SessionManager.clearAllNotifications(ctx)
+        notifications.clear()
     }
 
     override suspend fun registerDeviceToken(token: String) {

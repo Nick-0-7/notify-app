@@ -322,19 +322,37 @@ fun StudentCommunityScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                Icons.Default.ThumbUp,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp),
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                "${post.reactionsCount.values.sum()}",
-                                                style = MaterialTheme.typography.bodySmall
-                                            )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        val isCardHelpful = post.userReaction == ReactionType.HELPFUL
+                                        val count = post.reactionsCount["HELPFUL"] ?: post.reactionsCount.values.sum()
+                                        Surface(
+                                            onClick = {
+                                                scope.launch {
+                                                    communityRepo.toggleReaction(post.id, ReactionType.HELPFUL)
+                                                    val colId = activeCollege?.id ?: "b0f5e79d-9f32-44fd-a437-94f04a393088"
+                                                    posts = communityRepo.getPosts(colId, selectedType)
+                                                }
+                                            },
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (isCardHelpful) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isCardHelpful) Icons.Default.ThumbUp else Icons.Default.ThumbUpOffAlt,
+                                                    contentDescription = "Helpful",
+                                                    modifier = Modifier.size(16.dp),
+                                                    tint = if (isCardHelpful) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    if (count > 0) "$count Helpful" else "Helpful",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = if (isCardHelpful) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
                                         }
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Icon(
@@ -590,7 +608,9 @@ fun PostDetailScreen(
     fun refresh() {
         scope.launch {
             try {
-                post = communityRepo.getPostById(postId)
+                val fetched = communityRepo.getPostById(postId)
+                post = fetched
+                isLiked = fetched?.userReaction == ReactionType.HELPFUL
                 comments = communityRepo.getComments(postId)
             } catch (e: Exception) {
                 android.util.Log.e("PostDetail", "Error loading discussion: ${e.message}")
@@ -826,13 +846,23 @@ fun PostDetailScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    val helpfulCount = currentPost.reactionsCount["HELPFUL"] ?: (if (isLiked) 1 else 0)
                                     FilledTonalButton(
                                         onClick = {
+                                            if (isGuest) {
+                                                onNavigateToAuth()
+                                                return@FilledTonalButton
+                                            }
                                             isLiked = !isLiked
                                             scope.launch {
                                                 communityRepo.toggleReaction(postId, ReactionType.HELPFUL)
+                                                post = communityRepo.getPostById(postId)
                                             }
-                                        }
+                                        },
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = if (isLiked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                            contentColor = if (isLiked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     ) {
                                         Icon(
                                             imageVector = if (isLiked) Icons.Default.ThumbUp else Icons.Default.ThumbUpOffAlt,
@@ -840,7 +870,7 @@ fun PostDetailScreen(
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
-                                        Text(if (isLiked) "Helpful (10)" else "Helpful (9)")
+                                        Text(if (helpfulCount > 0) "Helpful ($helpfulCount)" else "Helpful")
                                     }
                                 }
                                 Text(

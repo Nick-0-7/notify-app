@@ -148,7 +148,8 @@ class RepositoriesUnitTest {
 
     @Test
     fun testNotificationInbox() = runTest {
-        val notifRepo = NotificationRepositoryImpl()
+        val noticeRepo = NoticeRepositoryImpl(forceMock = true)
+        val notifRepo = NotificationRepositoryImpl(customNoticeRepository = noticeRepo)
 
         val notifs = notifRepo.getNotifications()
         assertTrue(notifs.isNotEmpty())

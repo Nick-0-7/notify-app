@@ -31,6 +31,7 @@ fun NotificationInboxScreen(
     val notifRepo = RepositoryLocator.notificationRepository
     var notifications by remember { mutableStateOf<List<UserNotification>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var selectedNotifForDetail by remember { mutableStateOf<UserNotification?>(null) }
     val scope = rememberCoroutineScope()
 
     fun load() {
@@ -48,13 +49,47 @@ fun NotificationInboxScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Notification Inbox") },
+                title = {
+                    Column {
+                        Text("Notification Inbox", fontWeight = FontWeight.Bold)
+                        val unreadCount = notifications.count { !it.isRead }
+                        Text(
+                            text = if (unreadCount > 0) "$unreadCount unread updates" else "All caught up",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
+                    if (notifications.any { !it.isRead }) {
+                        IconButton(
+                            onClick = {
+                                scope.launch {
+                                    notifRepo.markAllAsRead()
+                                    notifications = notifications.map { it.copy(isRead = true) }
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.DoneAll, contentDescription = "Mark all as read")
+                        }
+                    }
+                    if (notifications.isNotEmpty()) {
+                        IconButton(
+                            onClick = {
+                                scope.launch {
+                                    notifRepo.clearAll()
+                                    notifications = emptyList()
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.DeleteSweep, contentDescription = "Clear all")
+                        }
+                    }
                     IconButton(onClick = { load() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
@@ -62,12 +97,46 @@ fun NotificationInboxScreen(
             )
         }
     ) { padding ->
+        if (selectedNotifForDetail != null) {
+            val n = selectedNotifForDetail!!
+            AlertDialog(
+                onDismissRequest = { selectedNotifForDetail = null },
+                title = { Text(n.title, fontWeight = FontWeight.Bold) },
+                text = {
+                    Column {
+                        Text(n.body, style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Received: ${n.createdAt ?: "Recently"}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { selectedNotifForDetail = null }) {
+                        Text("Close")
+                    }
+                }
+            )
+        }
+
         if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
                 CircularProgressIndicator()
             }
         } else if (notifications.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
                         Icons.Default.NotificationsNone,
@@ -77,6 +146,12 @@ fun NotificationInboxScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("No notifications yet", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Official updates, notices, and announcements will appear here.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         } else {
@@ -84,7 +159,7 @@ fun NotificationInboxScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(notifications) { notif ->
@@ -93,11 +168,18 @@ fun NotificationInboxScreen(
                             .fillMaxWidth()
                             .clickable {
                                 scope.launch { notifRepo.markAsRead(notif.id) }
-                                notif.noticeId?.let { onNavigateToNotice(it) }
+                                notifications = notifications.map {
+                                    if (it.id == notif.id) it.copy(isRead = true) else it
+                                }
+                                if (!notif.noticeId.isNullOrBlank() && notif.noticeId != "general") {
+                                    onNavigateToNotice(notif.noticeId)
+                                } else {
+                                    selectedNotifForDetail = notif
+                                }
                             },
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (notif.isRead) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                            containerColor = if (notif.isRead) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
                         )
                     ) {
                         Row(
@@ -112,6 +194,14 @@ fun NotificationInboxScreen(
                                         .background(MaterialTheme.colorScheme.primary)
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
+                            } else {
+                                Icon(
+                                    imageVector = if (notif.notificationType == "ALERT") Icons.Default.Campaign else Icons.Default.Description,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -122,7 +212,9 @@ fun NotificationInboxScreen(
                                 Text(
                                     text = notif.body,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(

@@ -135,6 +135,65 @@ object SessionManager {
 
     private const val KEY_HAS_SEEN_ONBOARDING = "has_seen_onboarding"
     private const val KEY_BOOKMARKS = "bookmarked_notice_ids"
+    private const val KEY_CACHED_NOTIFICATIONS_JSON = "cached_notifications_json"
+    private const val KEY_READ_NOTIFICATIONS = "read_notification_ids"
+
+    fun saveCachedNotifications(context: Context? = null, notifications: List<com.notify.app.domain.models.UserNotification>) {
+        val ctx = context ?: appContext ?: return
+        try {
+            val encoded = jsonHelper.encodeToString(kotlinx.serialization.builtins.ListSerializer(com.notify.app.domain.models.UserNotification.serializer()), notifications)
+            val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putString(KEY_CACHED_NOTIFICATIONS_JSON, encoded).apply()
+            Log.d(TAG, "Cached ${notifications.size} notifications locally")
+        } catch (e: Exception) {
+            Log.w(TAG, "Error caching notifications: ${e.message}")
+        }
+    }
+
+    fun getCachedNotifications(context: Context? = null): List<com.notify.app.domain.models.UserNotification> {
+        val ctx = context ?: appContext ?: return emptyList()
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val raw = prefs.getString(KEY_CACHED_NOTIFICATIONS_JSON, null) ?: return emptyList()
+        return try {
+            jsonHelper.decodeFromString(kotlinx.serialization.builtins.ListSerializer(com.notify.app.domain.models.UserNotification.serializer()), raw)
+        } catch (e: Exception) {
+            Log.w(TAG, "Error restoring cached notifications: ${e.message}")
+            emptyList()
+        }
+    }
+
+    fun addNotification(context: Context? = null, notification: com.notify.app.domain.models.UserNotification) {
+        val current = getCachedNotifications(context).toMutableList()
+        current.removeAll { it.id == notification.id }
+        current.add(0, notification)
+        saveCachedNotifications(context, current.take(50))
+    }
+
+    fun clearAllNotifications(context: Context? = null) {
+        val ctx = context ?: appContext ?: return
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().remove(KEY_CACHED_NOTIFICATIONS_JSON).apply()
+    }
+
+    fun markNotificationAsRead(context: Context? = null, id: String) {
+        val ctx = context ?: appContext ?: return
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val current = prefs.getStringSet(KEY_READ_NOTIFICATIONS, emptySet())?.toMutableSet() ?: mutableSetOf()
+        current.add(id)
+        prefs.edit().putStringSet(KEY_READ_NOTIFICATIONS, current).apply()
+
+        // Also update cached list if present
+        val notifs = getCachedNotifications(ctx).map {
+            if (it.id == id) it.copy(isRead = true) else it
+        }
+        saveCachedNotifications(ctx, notifs)
+    }
+
+    fun getReadNotificationIds(context: Context? = null): Set<String> {
+        val ctx = context ?: appContext ?: return emptySet()
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getStringSet(KEY_READ_NOTIFICATIONS, emptySet()) ?: emptySet()
+    }
 
     fun saveBookmarks(context: Context? = null, noticeIds: Set<String>) {
         val ctx = context ?: appContext ?: return
