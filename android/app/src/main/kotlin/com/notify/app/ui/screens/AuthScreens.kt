@@ -234,7 +234,7 @@ fun AuthScreen(
                         if (result.isSuccess) {
                             onAuthSuccess()
                         } else {
-                            errorMessage = result.exceptionOrNull()?.localizedMessage ?: "Authentication failed."
+                            errorMessage = parseAuthError(result.exceptionOrNull())
                         }
                     }
                 },
@@ -298,7 +298,7 @@ fun AuthScreen(
                         if (result.isSuccess && profile != null && profile.id != "pending-google") {
                             onAuthSuccess()
                         } else if (result.isFailure) {
-                            errorMessage = result.exceptionOrNull()?.localizedMessage ?: "Google sign-in failed."
+                            errorMessage = parseAuthError(result.exceptionOrNull())
                         }
                     }
                 },
@@ -355,3 +355,43 @@ fun AuthScreen(
         }
     }
 }
+
+/**
+ * Translates low-level network and Supabase exceptions into clear, friendly guidance.
+ */
+fun parseAuthError(throwable: Throwable?): String {
+    if (throwable == null) return "Authentication failed. Please verify your details and try again."
+    val msg = throwable.localizedMessage ?: throwable.message ?: ""
+    val lower = msg.lowercase()
+
+    return when {
+        lower.contains("unable to resolve host") ||
+        lower.contains("no address associated with hostname") ||
+        lower.contains("unknownhostexception") ||
+        lower.contains("connectexception") ||
+        lower.contains("timeout") ||
+        lower.contains("network") -> {
+            "Unable to connect to the server.\n\nPlease check your internet connection or mobile data and try again."
+        }
+        lower.contains("user already registered") || lower.contains("already exists") -> {
+            "An account with this email already exists. Please tap 'Sign In' below."
+        }
+        lower.contains("invalid login") || lower.contains("invalid credentials") || lower.contains("email not confirmed") -> {
+            "Invalid email or password. Please verify your credentials and try again."
+        }
+        lower.contains("password should be at least") || lower.contains("weak_password") -> {
+            "Password is too short. Please use at least 6 characters."
+        }
+        lower.contains("rate limit") -> {
+            "Too many attempts. Please wait a moment and try again."
+        }
+        else -> {
+            if (msg.contains("failed with message:")) {
+                msg.substringAfter("failed with message:").trim()
+            } else {
+                msg
+            }
+        }
+    }
+}
+

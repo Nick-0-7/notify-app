@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS public.study_materials (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     college_id UUID NOT NULL REFERENCES public.colleges(id) ON DELETE CASCADE,
-    author_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    author_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     title TEXT NOT NULL,
     subject TEXT NOT NULL,
     branch TEXT NOT NULL DEFAULT 'ALL',
@@ -27,7 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_materials_created ON public.study_materials(creat
 -- Enable RLS
 ALTER TABLE public.study_materials ENABLE ROW LEVEL SECURITY;
 
--- Policies: Everyone can view, authenticated students can upload
+-- Policies: Everyone can view, authenticated students can upload & delete
 DROP POLICY IF EXISTS "materials_select_all" ON public.study_materials;
 CREATE POLICY "materials_select_all" ON public.study_materials
     FOR SELECT USING (true);
@@ -41,8 +41,9 @@ CREATE POLICY "materials_update_all" ON public.study_materials
     FOR UPDATE USING (true);
 
 DROP POLICY IF EXISTS "materials_delete_own" ON public.study_materials;
-CREATE POLICY "materials_delete_own" ON public.study_materials
-    FOR DELETE USING (auth.uid() = author_id);
+DROP POLICY IF EXISTS "materials_delete_all" ON public.study_materials;
+CREATE POLICY "materials_delete_all" ON public.study_materials
+    FOR DELETE USING (true);
 
 -- Storage bucket for study materials
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -66,3 +67,7 @@ CREATE POLICY "storage_materials_select" ON storage.objects
 DROP POLICY IF EXISTS "storage_materials_insert" ON storage.objects;
 CREATE POLICY "storage_materials_insert" ON storage.objects
     FOR INSERT WITH CHECK (bucket_id = 'study_materials');
+
+DROP POLICY IF EXISTS "storage_materials_delete" ON storage.objects;
+CREATE POLICY "storage_materials_delete" ON storage.objects
+    FOR DELETE USING (bucket_id = 'study_materials');

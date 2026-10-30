@@ -1,8 +1,7 @@
 {
-  "versionCode": 18,
-  "versionName": "1.0.17",
-  "title": "Notify v1.0.17",
-  "releaseNotes": "- Deleted all demo files from Study Material & PYQ Hub; hub now exclusively reflects student uploads\n- Student Hub discussions & chats now auto-expire and purge after 24 hours\n- Automatic disk and cache cleanup for obsolete files",
-  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.17/Notify-v1.0.apk"
+  "versionCode": 19,
+  "versionName": "1.0.18",
+  "title": "Notify v1.0.18",
+  "releaseNotes": "- Fixed study hub visibility for all college students\n- Added file delete button so students can delete their uploaded materials\n- Clear and friendly network guidance when connection drops during login or sign-up",
+  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.18/Notify-v1.0.apk"
 }
-

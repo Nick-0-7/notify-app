@@ -1367,6 +1367,8 @@ interface MaterialRepository {
     ): Result<StudyMaterial>
 
     suspend fun likeMaterial(materialId: String): Result<Int>
+
+    suspend fun deleteMaterial(materialId: String): Result<Unit>
 }
 
 class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialRepository {
@@ -1380,6 +1382,8 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
         category: MaterialCategory?,
         query: String?
     ): List<StudyMaterial> = withContext(Dispatchers.IO) {
+        val safeCollegeId = if (collegeId.length == 36 && collegeId.contains("-")) collegeId else "b0f5e79d-9f32-44fd-a437-94f04a393088"
+
         // Purge any legacy demo files from device disk
         val ctx = com.notify.app.core.SessionManager.context
         if (ctx != null) {
@@ -1408,11 +1412,8 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
         val baseList: List<StudyMaterial> = if (SupabaseClientProvider.isConfigured && !forceMock) {
             try {
                 val live = SupabaseClientProvider.postgrest.from("study_materials")
-                    .select {
-                        filter {
-                            eq("college_id", collegeId)
-                        }
-                    }.decodeList<StudyMaterial>()
+                    .select()
+                    .decodeList<StudyMaterial>()
                 if (live.isNotEmpty()) {
                     val fullList = (live + materials).distinctBy { it.id }.filter { !it.id.startsWith("mat-00") && !it.id.startsWith("mock-") }
                     materials.clear()
@@ -1431,7 +1432,11 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
         }
 
         baseList.filter { item ->
-            val matchCollege = item.collegeId == collegeId || collegeId == "col-alpha-1"
+            val matchCollege = item.collegeId.isBlank() ||
+                    item.collegeId == collegeId ||
+                    item.collegeId == safeCollegeId ||
+                    collegeId == "col-alpha-1" ||
+                    safeCollegeId == "b0f5e79d-9f32-44fd-a437-94f04a393088"
             val matchBranch = branch.isNullOrBlank() || branch.equals("ALL", ignoreCase = true) || item.branch.equals("ALL", ignoreCase = true) || item.branch.equals(branch, ignoreCase = true)
             val matchSemester = semester == null || semester == 0 || item.semester == semester
             val matchCategory = category == null || item.category == category
@@ -1457,9 +1462,10 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
     ): Result<StudyMaterial> = withContext(Dispatchers.IO) {
         val curUser = RepositoryLocator.authRepository.currentUserState.value
         val actualUid = curUser?.id?.takeIf { !it.startsWith("mock-") } ?: "f8ba1cd8-d42b-4132-829b-e8f6dc453259"
+        val safeCollegeId = if (collegeId.length == 36 && collegeId.contains("-")) collegeId else "b0f5e79d-9f32-44fd-a437-94f04a393088"
         val matId = UUID.randomUUID().toString()
         val safeFileName = fileName.replace(" ", "_")
-        val storagePath = "$collegeId/${matId}_$safeFileName"
+        val storagePath = "$safeCollegeId/${matId}_$safeFileName"
 
         // 1. Persist uploaded file bytes directly to local storage for instant offline viewing via FileProvider
         val ctx = com.notify.app.core.SessionManager.context
@@ -1493,7 +1499,7 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
                 // Insert metadata into study_materials table
                 val payload = buildJsonObject {
                     put("id", matId)
-                    put("college_id", collegeId)
+                    put("college_id", safeCollegeId)
                     put("author_id", actualUid)
                     put("title", title)
                     put("subject", subject)
@@ -1514,7 +1520,7 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
 
         val newMat = StudyMaterial(
             id = matId,
-            collegeId = collegeId,
+            collegeId = safeCollegeId,
             authorId = actualUid,
             title = title,
             subject = subject,
@@ -1551,6 +1557,46 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
         } else {
             Result.failure(Exception("Material not found"))
         }
+    }
+
+    override suspend fun deleteMaterial(materialId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val mat = materials.find { it.id == materialId }
+        val ctx = com.notify.app.core.SessionManager.context
+
+        // 1. Delete local file copy
+        if (ctx != null) {
+            try {
+                val f1 = java.io.File(java.io.File(ctx.filesDir, "study_materials"), "${materialId}_${mat?.fileName ?: ""}")
+                val f2 = java.io.File(java.io.File(ctx.filesDir, "study_materials"), mat?.fileName ?: "")
+                val f3 = java.io.File(java.io.File(ctx.cacheDir, "study_materials"), "${materialId}_${mat?.fileName ?: ""}")
+                val f4 = java.io.File(java.io.File(ctx.cacheDir, "study_materials"), mat?.fileName ?: "")
+                listOf(f1, f2, f3, f4).forEach { if (it.exists()) it.delete() }
+            } catch (_: Exception) {}
+        }
+
+        // 2. Delete from Supabase
+        if (SupabaseClientProvider.isConfigured && !forceMock) {
+            try {
+                if (mat != null) {
+                    val safeCollegeId = if (mat.collegeId.length == 36 && mat.collegeId.contains("-")) mat.collegeId else "b0f5e79d-9f32-44fd-a437-94f04a393088"
+                    val storagePath = "$safeCollegeId/${mat.id}_${mat.fileName}"
+                    try {
+                        SupabaseClientProvider.storage.from("study_materials").delete(listOf(storagePath))
+                    } catch (se: Exception) {
+                        android.util.Log.w("MaterialRepo", "Storage delete notice: ${se.message}")
+                    }
+                }
+                SupabaseClientProvider.postgrest.from("study_materials").delete {
+                    filter { eq("id", materialId) }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("MaterialRepo", "Postgrest delete notice: ${e.message}")
+            }
+        }
+
+        materials.removeAll { it.id == materialId }
+        com.notify.app.core.SessionManager.saveCachedMaterials(null, materials)
+        Result.success(Unit)
     }
 }
 

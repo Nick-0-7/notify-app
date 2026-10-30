@@ -62,6 +62,8 @@ fun StudyMaterialScreen(
     var isLoading by remember { mutableStateOf(true) }
     var showUploadDialog by remember { mutableStateOf(false) }
     var showGuestPrompt by remember { mutableStateOf(false) }
+    var materialToDelete by remember { mutableStateOf<StudyMaterial?>(null) }
+    var isDeleting by remember { mutableStateOf(false) }
 
     val semesters = listOf(0, 1, 2, 3, 4, 5, 6, 7, 8)
 
@@ -412,8 +414,10 @@ fun StudyMaterialScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    val authorName = mat.author?.fullName 
+                                        ?: if (curProfile?.id != null && mat.authorId == curProfile?.id) curProfile?.fullName ?: "You" else "Verified Student"
                                     Text(
-                                        text = "By ${mat.author?.fullName ?: "Student"} • ${FileCompressor.formatBytes(mat.fileSizeBytes)}",
+                                        text = "By $authorName • ${FileCompressor.formatBytes(mat.fileSizeBytes)}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -487,6 +491,27 @@ fun StudyMaterialScreen(
                                         ) {
                                             Icon(Icons.Default.Share, contentDescription = "Share", modifier = Modifier.size(18.dp))
                                         }
+
+                                        // Delete button (accessible if user is author or admin)
+                                        val isOwner = curProfile != null && (
+                                            mat.authorId == curProfile?.id ||
+                                            curProfile?.isSystemAdmin == true ||
+                                            mat.author?.id == curProfile?.id
+                                        )
+                                        if (isOwner) {
+                                            IconButton(
+                                                onClick = {
+                                                    materialToDelete = mat
+                                                }
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.DeleteOutline,
+                                                    contentDescription = "Delete File",
+                                                    modifier = Modifier.size(19.dp),
+                                                    tint = MaterialTheme.colorScheme.error
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -495,6 +520,68 @@ fun StudyMaterialScreen(
                 }
             }
         }
+    }
+
+    // Delete Confirmation Dialog
+    if (materialToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { if (!isDeleting) materialToDelete = null },
+            icon = {
+                Icon(
+                    Icons.Default.DeleteForever,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = {
+                Text("Delete Study Material?", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(
+                    "Are you sure you want to delete \"${materialToDelete?.title}\"? This file will be removed for all students."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val target = materialToDelete ?: return@Button
+                        isDeleting = true
+                        scope.launch {
+                            val res = materialRepo.deleteMaterial(target.id)
+                            isDeleting = false
+                            materialToDelete = null
+                            if (res.isSuccess) {
+                                materials = materials.filter { it.id != target.id }
+                                Toast.makeText(context, "File deleted successfully", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Failed to delete file", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    enabled = !isDeleting
+                ) {
+                    if (isDeleting) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onError)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Deleting...")
+                    } else {
+                        Text("Delete")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { materialToDelete = null },
+                    enabled = !isDeleting
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     // Guest Prompt Modal
