@@ -1,6 +1,7 @@
 package com.notify.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -30,6 +32,7 @@ fun SourceManagementScreen(
     val collegeRepo = RepositoryLocator.collegeRepository
     val sourceRepo = RepositoryLocator.sourceRepository
     val activeCollege by collegeRepo.activeCollegeState.collectAsState()
+    val uriHandler = LocalUriHandler.current
 
     var sources by remember { mutableStateOf<List<NoticeSource>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -164,13 +167,30 @@ fun SourceManagementScreen(
                                 }
 
                                 Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = src.url,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .clickable {
+                                            try { uriHandler.openUri(src.url) } catch (_: Exception) {}
+                                        }
+                                        .padding(vertical = 2.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.OpenInNew,
+                                        contentDescription = "Open Link",
+                                        modifier = Modifier.size(14.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = src.url,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
 
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Row(

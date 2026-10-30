@@ -1,7 +1,7 @@
 {
-  "versionCode": 21,
-  "versionName": "1.0.20",
-  "title": "Notify v1.0.20",
-  "releaseNotes": "- Fixed discussion Helpful button: accurate live reaction counts, instant feedback on toggle, and persistent count synchronization across feed and discussion screens",
-  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.20/Notify-v1.0.apk"
+  "versionCode": 22,
+  "versionName": "1.0.21",
+  "title": "Notify v1.0.21",
+  "releaseNotes": "- Added SITCOE Moodle portal (http://103.232.247.227/moodle/) and Student Result & ERP portal (https://student.sitcoeapps.in/itxlogin) to live monitored sources\n- Made monitored sources directly clickable with 1-tap browser access in app",
+  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.21/Notify-v1.0.apk"
 }

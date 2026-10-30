@@ -804,6 +804,28 @@ class SourceRepositoryImpl : SourceRepository {
             lastSuccessAt = "2026-10-29T08:08:00Z"
         ),
         NoticeSource(
+            id = "8830326e-2035-416d-a172-e0b452d3fda4",
+            collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
+            label = "SITCOE Moodle Portal (Exam & Courses)",
+            url = "http://103.232.247.227/moodle/",
+            sourceType = SourceType.NOTICE_BOARD_PAGE,
+            status = SourceStatus.APPROVED_ACTIVE,
+            checkIntervalMinutes = 15,
+            lastCheckedAt = "2026-10-30T15:47:00Z",
+            lastSuccessAt = "2026-10-30T15:47:00Z"
+        ),
+        NoticeSource(
+            id = "8dd02c84-d639-419d-bf48-00a12ac0f073",
+            collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
+            label = "SITCOE Student Result & ERP Portal (Intellinex)",
+            url = "https://student.sitcoeapps.in/itxlogin",
+            sourceType = SourceType.HOMEPAGE_CRAWL,
+            status = SourceStatus.APPROVED_ACTIVE,
+            checkIntervalMinutes = 15,
+            lastCheckedAt = "2026-10-30T15:51:00Z",
+            lastSuccessAt = "2026-10-30T15:51:00Z"
+        ),
+        NoticeSource(
             id = "src-001",
             collegeId = "col-alpha-1",
             label = "College Official Circulars",
@@ -837,6 +859,15 @@ class SourceRepositoryImpl : SourceRepository {
     )
 
     override suspend fun getSources(collegeId: String): List<NoticeSource> = withContext(Dispatchers.IO) {
+        if (SupabaseClientProvider.isConfigured) {
+            try {
+                val live = SupabaseClientProvider.postgrest.from("notice_sources")
+                    .select {
+                        filter { eq("college_id", collegeId) }
+                    }.decodeList<NoticeSource>()
+                if (live.isNotEmpty()) return@withContext live
+            } catch (_: Exception) {}
+        }
         sources.filter { it.collegeId == collegeId }
     }
 
