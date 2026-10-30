@@ -56,6 +56,7 @@ fun StudyMaterialScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<MaterialCategory?>(null) }
     var selectedSemester by remember { mutableStateOf(0) } // 0 = All
+    var semesterMenuExpanded by remember { mutableStateOf(false) }
 
     var materials by remember { mutableStateOf<List<StudyMaterial>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -177,39 +178,116 @@ fun StudyMaterialScreen(
                 }
             }
 
-            // Semester Filter Bar (Sem 1 to 8)
+            // Semester Dropdown Selector & Department Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer,
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text(
-                        text = "CSE Department",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.School,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "CSE Department",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
 
-                FilterChip(
-                    selected = selectedSemester == 0,
-                    onClick = { selectedSemester = 0 },
-                    label = { Text("All Semesters") }
-                )
+                // Dropdown Menu Button for Semesters
+                Box {
+                    OutlinedButton(
+                        onClick = { semesterMenuExpanded = true },
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = if (selectedSemester > 0) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Text(
+                            text = if (selectedSemester == 0) "All Semesters" else "Semester $selectedSemester",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            if (semesterMenuExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                            contentDescription = "Select Semester",
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
 
-                semesters.filter { it > 0 }.forEach { s ->
-                    FilterChip(
-                        selected = selectedSemester == s,
-                        onClick = { selectedSemester = if (selectedSemester == s) 0 else s },
-                        label = { Text("Semester $s") }
-                    )
+                    DropdownMenu(
+                        expanded = semesterMenuExpanded,
+                        onDismissRequest = { semesterMenuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "All Semesters (Sem 1 - 8)",
+                                    fontWeight = if (selectedSemester == 0) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (selectedSemester == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            leadingIcon = {
+                                if (selectedSemester == 0) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            },
+                            onClick = {
+                                selectedSemester = 0
+                                semesterMenuExpanded = false
+                            }
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        (1..8).forEach { sem ->
+                            val yearLabel = when (sem) {
+                                1, 2 -> "First Year (FY)"
+                                3, 4 -> "Second Year (SY)"
+                                5, 6 -> "Third Year (TY)"
+                                else -> "Final Year (B.Tech)"
+                            }
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(
+                                            "Semester $sem",
+                                            fontWeight = if (selectedSemester == sem) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (selectedSemester == sem) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            yearLabel,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                leadingIcon = {
+                                    if (selectedSemester == sem) {
+                                        Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                },
+                                onClick = {
+                                    selectedSemester = sem
+                                    semesterMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -474,6 +552,7 @@ fun UploadMaterialDialog(
     var subject by remember { mutableStateOf("") }
     var branch by remember { mutableStateOf("CSE") }
     var semester by remember { mutableStateOf(5) }
+    var semesterUploadExpanded by remember { mutableStateOf(false) }
     var category by remember { mutableStateOf(MaterialCategory.PYQ) }
 
     var selectedFileResult by remember { mutableStateOf<CompressedFileResult?>(null) }
@@ -572,14 +651,56 @@ fun UploadMaterialDialog(
                         }
                     }
 
-                    OutlinedTextField(
-                        value = if (semester > 0) semester.toString() else "",
-                        onValueChange = { semester = it.toIntOrNull() ?: 1 },
-                        label = { Text("Semester (1-8)") },
-                        modifier = Modifier.weight(0.7f),
-                        singleLine = true,
-                        shape = RoundedCornerShape(10.dp)
-                    )
+                    // Semester Dropdown Selector
+                    Box(modifier = Modifier.weight(0.9f)) {
+                        OutlinedButton(
+                            onClick = { semesterUploadExpanded = true },
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(horizontalAlignment = Alignment.Start) {
+                                    Text("Semester", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Sem $semester", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                                }
+                                Icon(
+                                    if (semesterUploadExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                                    contentDescription = null
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = semesterUploadExpanded,
+                            onDismissRequest = { semesterUploadExpanded = false }
+                        ) {
+                            (1..8).forEach { sem ->
+                                val yr = when (sem) {
+                                    1, 2 -> "FY"
+                                    3, 4 -> "SY"
+                                    5, 6 -> "TY"
+                                    else -> "Final"
+                                }
+                                DropdownMenuItem(
+                                    text = { Text("Semester $sem ($yr)", fontWeight = if (semester == sem) FontWeight.Bold else FontWeight.Normal) },
+                                    leadingIcon = {
+                                        if (semester == sem) {
+                                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                    },
+                                    onClick = {
+                                        semester = sem
+                                        semesterUploadExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
 
                 // 1-Tap File Picker Button

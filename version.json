@@ -1,8 +1,8 @@
 {
-  "versionCode": 16,
-  "versionName": "1.0.15",
-  "title": "Notify v1.0.15",
-  "releaseNotes": "- Fixed Study Material opening: PDF and image files now open directly in native Android PDF reader / image viewer via FileProvider (no website redirection)\n- Instant offline viewing with local persistence in app storage\n- Built-in study document preview for offline notes and PYQs\n- Native Android Share Sheet support for study materials",
-  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.15/Notify-v1.0.apk"
+  "versionCode": 17,
+  "versionName": "1.0.16",
+  "title": "Notify v1.0.16",
+  "releaseNotes": "- Replaced side-by-side semester chips with a clean, vertical Dropdown List for instant semester selection (Sem 1 to Sem 8)\n- Dropdown semester selector added to Upload Study Material sheet\n- Instant filtering by semester without horizontal scrolling",
+  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.16/Notify-v1.0.apk"
 }
 
