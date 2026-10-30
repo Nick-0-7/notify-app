@@ -102,7 +102,7 @@ fun StudentCommunityScreen(
                     Column {
                         Text("Student Hub", fontWeight = FontWeight.Bold)
                         Text(
-                            "Student community discussions & campus updates",
+                            "Discussions auto-expire after 24 hours",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

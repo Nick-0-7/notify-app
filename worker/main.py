@@ -170,6 +170,12 @@ async def run_worker(college_id_filter: Optional[str] = None):
         for source in sources:
             await process_source(source)
 
+        # 3. Clean up expired student community posts (> 24 hours old)
+        try:
+            db.cleanup_expired_community_posts(max_hours=24)
+        except Exception as e:
+            logger.warning(f"Failed to cleanup expired posts: {e}")
+
         logger.info("Notify Worker completed all source checks successfully.")
         return 0
     finally:

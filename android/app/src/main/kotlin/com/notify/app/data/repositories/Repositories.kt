@@ -894,20 +894,51 @@ interface CommunityRepository {
 class CommunityRepositoryImpl(private val forceMock: Boolean = false) : CommunityRepository {
     // Persistent thread-safe local cache + fallback
     private val posts = CopyOnWriteArrayList<StudentPost>().apply {
-        addAll(com.notify.app.core.SessionManager.getCachedPosts())
+        addAll(com.notify.app.core.SessionManager.getCachedPosts().filter { !isExpired(it.createdAt) })
     }
     private val comments = CopyOnWriteArrayList<Comment>()
 
     private fun isExpired(createdAtStr: String?): Boolean {
-        // Keep all student posts permanently in the community feed
+        if (createdAtStr.isNullOrBlank()) return false
+        if (createdAtStr.equals("Just now", ignoreCase = true)) return false
+        val formats = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd"
+        )
+        for (fmt in formats) {
+            try {
+                val sdf = SimpleDateFormat(fmt, Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }
+                val parsed = sdf.parse(createdAtStr)
+                if (parsed != null) {
+                    val twentyFourHoursMs = 24L * 60 * 60 * 1000L // 24 hours
+                    return (System.currentTimeMillis() - parsed.time) > twentyFourHoursMs
+                }
+            } catch (_: Exception) {}
+        }
         return false
     }
 
     private fun purgeExpiredPosts() {
-        // Posts do not expire
+        val active = posts.filter { !isExpired(it.createdAt) }
+        if (active.size != posts.size) {
+            posts.clear()
+            posts.addAll(active)
+            com.notify.app.core.SessionManager.saveCachedPosts(posts = active)
+        }
     }
 
     override suspend fun getPosts(collegeId: String, type: PostType?): List<StudentPost> = withContext(Dispatchers.IO) {
+        val cutoff = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }.format(Date(System.currentTimeMillis() - 24L * 60 * 60 * 1000L))
+
         val baseList: List<StudentPost> = if (SupabaseClientProvider.isConfigured && !forceMock) {
             try {
                 val live = SupabaseClientProvider.postgrest.from("student_posts")
@@ -915,6 +946,7 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
                         filter {
                             eq("college_id", collegeId)
                             eq("status", "PUBLISHED")
+                            gte("created_at", cutoff)
                             if (type != null) {
                                 eq("post_type", type.name)
                             }
@@ -922,32 +954,40 @@ class CommunityRepositoryImpl(private val forceMock: Boolean = false) : Communit
                         order(column = "created_at", order = io.github.jan.supabase.postgrest.query.Order.DESCENDING)
                     }.decodeList<StudentPost>()
                 if (live.isNotEmpty()) {
+                    val filtered = live.filter { !isExpired(it.createdAt) }
                     posts.clear()
-                    posts.addAll(live)
-                    com.notify.app.core.SessionManager.saveCachedPosts(posts = live)
-                    live
+                    posts.addAll(filtered)
+                    com.notify.app.core.SessionManager.saveCachedPosts(posts = filtered)
+                    filtered
                 } else {
-                    val cached = com.notify.app.core.SessionManager.getCachedPosts()
+                    val cached = com.notify.app.core.SessionManager.getCachedPosts().filter { !isExpired(it.createdAt) }
                     if (cached.isNotEmpty()) {
                         posts.clear()
                         posts.addAll(cached)
                         cached
-                    } else posts
+                    } else {
+                        posts.clear()
+                        emptyList()
+                    }
                 }
             } catch (e: Exception) {
                 println("[CommunityRepo] Error fetching live student posts from Supabase: ${e.message}")
-                val cached = com.notify.app.core.SessionManager.getCachedPosts()
+                val cached = com.notify.app.core.SessionManager.getCachedPosts().filter { !isExpired(it.createdAt) }
                 if (cached.isNotEmpty()) {
                     posts.clear()
                     posts.addAll(cached)
                     cached
-                } else posts
+                } else {
+                    posts.clear()
+                    emptyList()
+                }
             }
         } else {
-            val cached = com.notify.app.core.SessionManager.getCachedPosts()
-            if (cached.isNotEmpty()) cached else posts
+            val cached = com.notify.app.core.SessionManager.getCachedPosts().filter { !isExpired(it.createdAt) }
+            if (cached.isNotEmpty()) cached else posts.filter { !isExpired(it.createdAt) }
         }
-        baseList.filter { it.collegeId == collegeId && (type == null || it.postType == type) }
+        purgeExpiredPosts()
+        baseList.filter { !isExpired(it.createdAt) && it.collegeId == collegeId && (type == null || it.postType == type) }
     }
 
     override suspend fun createPost(
@@ -1330,78 +1370,8 @@ interface MaterialRepository {
 }
 
 class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialRepository {
-    private val materials = CopyOnWriteArrayList<StudyMaterial>(
-        listOf(
-            StudyMaterial(
-                id = "mat-001",
-                collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
-                authorId = "mock-user-1",
-                title = "Winter 2025 Operating Systems Endsem Question Paper",
-                subject = "Operating Systems",
-                branch = "CSE",
-                semester = 5,
-                category = MaterialCategory.PYQ,
-                fileUrl = "https://www.sitcoe.ac.in/notices/midterm-2026.pdf",
-                fileName = "OS_Endsem_Winter2025.pdf",
-                fileSizeBytes = 458752,
-                mimeType = "application/pdf",
-                likesCount = 38,
-                createdAt = "2026-10-25T14:00:00Z",
-                author = UserProfile(fullName = "Akash Shinde", bio = "TY CSE Student")
-            ),
-            StudyMaterial(
-                id = "mat-002",
-                collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
-                authorId = "mock-user-2",
-                title = "Discrete Mathematics & Graph Theory Formula Handbook",
-                subject = "Discrete Mathematics",
-                branch = "CSE",
-                semester = 3,
-                category = MaterialCategory.NOTES,
-                fileUrl = "https://www.sitcoe.ac.in/notices/midterm-2026.pdf",
-                fileName = "DMGT_Formula_Handbook.pdf",
-                fileSizeBytes = 724992,
-                mimeType = "application/pdf",
-                likesCount = 92,
-                createdAt = "2026-10-26T11:30:00Z",
-                author = UserProfile(fullName = "Pooja Patil", bio = "CSE Department Topper")
-            ),
-            StudyMaterial(
-                id = "mat-003",
-                collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
-                authorId = "mock-user-3",
-                title = "Database Management Systems Lab Manual & SQL Queries",
-                subject = "DBMS",
-                branch = "CSE",
-                semester = 4,
-                category = MaterialCategory.LAB_MANUAL,
-                fileUrl = "https://www.sitcoe.ac.in/notices/midterm-2026.pdf",
-                fileName = "DBMS_Lab_Manual_2026.pdf",
-                fileSizeBytes = 891289,
-                mimeType = "application/pdf",
-                likesCount = 45,
-                createdAt = "2026-10-27T09:15:00Z",
-                author = UserProfile(fullName = "Rohan Kulkarni", bio = "SY CSE")
-            ),
-            StudyMaterial(
-                id = "mat-004",
-                collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
-                authorId = "mock-user-4",
-                title = "Computer Networks & Security Winter 2025 Endsem Question Paper",
-                subject = "Computer Networks",
-                branch = "CSE",
-                semester = 6,
-                category = MaterialCategory.PYQ,
-                fileUrl = "https://www.sitcoe.ac.in/notices/midterm-2026.pdf",
-                fileName = "CNS_Endsem_Winter2025.pdf",
-                fileSizeBytes = 512000,
-                mimeType = "application/pdf",
-                likesCount = 29,
-                createdAt = "2026-10-28T16:00:00Z",
-                author = UserProfile(fullName = "Vikram Deshmukh", bio = "CSE Final Year")
-            )
-        )
-    )
+    // Only real student-uploaded files; all demo mock files deleted
+    private val materials = CopyOnWriteArrayList<StudyMaterial>()
 
     override suspend fun getMaterials(
         collegeId: String,
@@ -1410,11 +1380,29 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
         category: MaterialCategory?,
         query: String?
     ): List<StudyMaterial> = withContext(Dispatchers.IO) {
-        val cached = com.notify.app.core.SessionManager.getCachedMaterials()
+        // Purge any legacy demo files from device disk
+        val ctx = com.notify.app.core.SessionManager.context
+        if (ctx != null) {
+            try {
+                val dir = java.io.File(ctx.filesDir, "study_materials")
+                if (dir.exists()) {
+                    dir.listFiles()?.filter { f ->
+                        f.name.startsWith("mat-00") || f.name.contains("DMGT_") || f.name.contains("DBMS_Lab") || f.name.contains("CNS_Endsem") || f.name.contains("OS_Endsem")
+                    }?.forEach { it.delete() }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // Purge demo materials from persistent cache
+        val cached = com.notify.app.core.SessionManager.getCachedMaterials().filter {
+            !it.id.startsWith("mat-00") && !it.id.startsWith("mock-")
+        }
         if (cached.isNotEmpty()) {
-            val merged = (cached + materials).distinctBy { it.id }
+            val merged = (cached + materials).distinctBy { it.id }.filter { !it.id.startsWith("mat-00") && !it.id.startsWith("mock-") }
             materials.clear()
             materials.addAll(merged)
+        } else {
+            materials.removeAll { it.id.startsWith("mat-00") || it.id.startsWith("mock-") }
         }
 
         val baseList: List<StudyMaterial> = if (SupabaseClientProvider.isConfigured && !forceMock) {
@@ -1426,20 +1414,20 @@ class MaterialRepositoryImpl(private val forceMock: Boolean = false) : MaterialR
                         }
                     }.decodeList<StudyMaterial>()
                 if (live.isNotEmpty()) {
-                    val fullList = (live + materials).distinctBy { it.id }
+                    val fullList = (live + materials).distinctBy { it.id }.filter { !it.id.startsWith("mat-00") && !it.id.startsWith("mock-") }
                     materials.clear()
                     materials.addAll(fullList)
                     com.notify.app.core.SessionManager.saveCachedMaterials(null, fullList)
                     fullList
                 } else {
-                    materials
+                    materials.filter { !it.id.startsWith("mat-00") && !it.id.startsWith("mock-") }
                 }
             } catch (e: Exception) {
                 android.util.Log.w("MaterialRepo", "Supabase getMaterials notice: ${e.message}")
-                materials
+                materials.filter { !it.id.startsWith("mat-00") && !it.id.startsWith("mock-") }
             }
         } else {
-            materials
+            materials.filter { !it.id.startsWith("mat-00") && !it.id.startsWith("mock-") }
         }
 
         baseList.filter { item ->
