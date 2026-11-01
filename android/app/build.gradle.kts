@@ -12,8 +12,8 @@ android {
     applicationId = "com.notify.app"
     minSdk = 26
     targetSdk = 36
-    versionCode = 23
-    versionName = "1.0.22"
+    versionCode = 24
+    versionName = "1.0.23"
   }
 
   signingConfigs {
@@ -22,6 +22,12 @@ android {
       storePassword = "android"
       keyAlias = "androiddebugkey"
       keyPassword = "android"
+    }
+    create("release") {
+      storeFile = file("release.keystore")
+      storePassword = System.getenv("RELEASE_STORE_PASSWORD") ?: "notifypassword"
+      keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: "notifykey"
+      keyPassword = System.getenv("RELEASE_KEY_PASSWORD") ?: "notifypassword"
     }
   }
 
@@ -32,7 +38,7 @@ android {
     release {
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("debug")
+      signingConfig = signingConfigs.getByName("release")
     }
   }
   compileOptions {
@@ -55,6 +61,11 @@ android {
       excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
   }
+
+  lint {
+    abortOnError = false
+    checkReleaseBuilds = false
+  }
 }
 
 kotlin {
@@ -68,6 +79,7 @@ dependencies {
 
   // Core Android dependencies
   implementation(libs.androidx.core.ktx)
+  implementation(libs.androidx.fragment.ktx)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.browser)

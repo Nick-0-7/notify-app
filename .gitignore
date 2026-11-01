@@ -48,6 +48,7 @@ captures/
 local.properties
 *.keystore
 !android/app/debug.keystore
+!android/app/release.keystore
 *.apk
 *.aab
 

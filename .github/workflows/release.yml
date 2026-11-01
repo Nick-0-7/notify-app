@@ -41,13 +41,13 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
 
       - name: Copy & Rename APK
         run: |
           mkdir -p release-artifacts
-          cp android/app/build/outputs/apk/debug/app-debug.apk release-artifacts/Notify-v1.0.apk
-          cp android/app/build/outputs/apk/debug/app-debug.apk "release-artifacts/Notify-${{ github.ref_name || github.event.inputs.version_tag }}.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk release-artifacts/Notify-v1.0.apk
+          cp android/app/build/outputs/apk/release/app-release.apk "release-artifacts/Notify-${{ github.ref_name || github.event.inputs.version_tag }}.apk"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
