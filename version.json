@@ -1,7 +1,7 @@
 {
-  "versionCode": 24,
-  "versionName": "1.0.23",
-  "title": "Notify v1.0.23",
-  "releaseNotes": "- Signed with dedicated production release key to prevent Play Protect harmful/unsafe app warnings\n- Formatted all notice publish dates and final deadlines into dd/MM/yyyy format across Dashboard, Notices, and Inbox\n- Fixed notification inbox delete functionality with instant removal and persistent tombstone tracking\n- Auto-prune and hide notifications older than 3 months (90 days) on both app and worker\n- Added live official SITCOE Notifications XML RSS feed and Exam Timetable feed",
-  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.23/Notify-v1.0.apk"
+  "versionCode": 25,
+  "versionName": "1.0.24",
+  "title": "Notify v1.0.24",
+  "releaseNotes": "- Added multi-select and delete in Notification Inbox with Select All and bulk removal\n- Fixed deleted notifications coming back on refresh via synchronous JSON persistence\n- Enabled high-importance heads-up popup notifications with sound and vibration for new circulars\n- Added anonymous FCM device token registration so all students receive instant notice popups\n- Added in-app device notification permission alert banner\n- Signed with production release key to prevent Play Protect harmful/unsafe app warnings",
+  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.24/Notify-v1.0.apk"
 }

@@ -1376,6 +1376,7 @@ interface NotificationRepository {
     suspend fun markAsRead(notificationId: String)
     suspend fun markAllAsRead()
     suspend fun deleteNotification(notificationId: String)
+    suspend fun deleteNotifications(notificationIds: Collection<String>)
     suspend fun clearAll()
     suspend fun registerDeviceToken(token: String)
 }
@@ -1480,29 +1481,47 @@ class NotificationRepositoryImpl(
         com.notify.app.core.SessionManager.saveCachedNotifications(ctx, updated)
     }
 
-    override suspend fun deleteNotification(notificationId: String) = withContext(Dispatchers.IO) {
-        inMemoryDeletedIds.add(notificationId)
-        val notif = notifications.find { it.id == notificationId }
-        if (notif?.noticeId != null) {
-            inMemoryDeletedIds.add(notif.noticeId)
-            inMemoryDeletedIds.add("notice_${notif.noticeId}")
+    override suspend fun deleteNotification(notificationId: String) {
+        deleteNotifications(listOf(notificationId))
+    }
+
+    override suspend fun deleteNotifications(notificationIds: Collection<String>) = withContext(Dispatchers.IO) {
+        if (notificationIds.isEmpty()) return@withContext
+        val allKeys = mutableSetOf<String>()
+        for (id in notificationIds) {
+            val clean = id.trim()
+            if (clean.isBlank()) continue
+            allKeys.add(clean)
+            if (clean.startsWith("notice_")) {
+                allKeys.add(clean.removePrefix("notice_"))
+            } else {
+                allKeys.add("notice_$clean")
+            }
         }
+        for (notif in notifications) {
+            if (allKeys.contains(notif.id) || (notif.noticeId != null && allKeys.contains(notif.noticeId))) {
+                allKeys.add(notif.id)
+                if (!notif.noticeId.isNullOrBlank()) {
+                    allKeys.add(notif.noticeId)
+                    allKeys.add("notice_${notif.noticeId}")
+                }
+            }
+        }
+        inMemoryDeletedIds.addAll(allKeys)
         val ctx = com.notify.app.core.SessionManager.context
-        com.notify.app.core.SessionManager.markNotificationAsDeleted(ctx, notificationId)
-        if (notif?.noticeId != null) {
-            com.notify.app.core.SessionManager.markNotificationAsDeleted(ctx, notif.noticeId)
-            com.notify.app.core.SessionManager.markNotificationAsDeleted(ctx, "notice_${notif.noticeId}")
-        }
-        notifications.removeAll { it.id == notificationId || (notif?.noticeId != null && it.noticeId == notif.noticeId) }
+        com.notify.app.core.SessionManager.markAllAsDeleted(ctx, allKeys)
+        notifications.removeAll { allKeys.contains(it.id) || (it.noticeId != null && allKeys.contains(it.noticeId)) }
 
         // Also delete from Supabase if configured
         if (SupabaseClientProvider.isConfigured && !forceMock) {
             try {
-                SupabaseClientProvider.postgrest.from("user_notifications").delete {
-                    filter { eq("id", notificationId) }
+                for (id in notificationIds) {
+                    SupabaseClientProvider.postgrest.from("user_notifications").delete {
+                        filter { eq("id", id) }
+                    }
                 }
             } catch (e: Exception) {
-                android.util.Log.w("NotifRepo", "Supabase notification delete notice: ${e.message}")
+                android.util.Log.w("NotifRepo", "Supabase notifications bulk delete notice: ${e.message}")
             }
         }
     }
@@ -1511,10 +1530,7 @@ class NotificationRepositoryImpl(
         val allIds = notifications.map { it.id }.toSet()
         val noticeIds = notifications.mapNotNull { it.noticeId }.toSet()
         val allKeys = allIds + noticeIds + noticeIds.map { "notice_$it" } + listOf("welcome_notif")
-        inMemoryDeletedIds.addAll(allKeys)
-
-        val ctx = com.notify.app.core.SessionManager.context
-        com.notify.app.core.SessionManager.markAllAsDeleted(ctx, allKeys)
+        deleteNotifications(allKeys)
         notifications.clear()
 
         // Also clear from Supabase if configured
@@ -1537,20 +1553,18 @@ class NotificationRepositoryImpl(
             try {
                 if (SupabaseClientProvider.isConfigured) {
                     val user = SupabaseClientProvider.auth.currentUserOrNull()
-                    if (user != null) {
-                        val tokenData = buildJsonObject {
+                    val tokenData = buildJsonObject {
+                        if (user != null) {
                             put("user_id", user.id)
-                            put("token", token)
-                            put("platform", "android")
-                            put("is_active", true)
                         }
-                        SupabaseClientProvider.postgrest.from("device_tokens").upsert(tokenData) {
-                            onConflict = "token"
-                        }
-                        android.util.Log.d("NotificationRepo", "Device token registered to Supabase for ${user.id}")
-                    } else {
-                        android.util.Log.d("NotificationRepo", "User not logged in yet. Device token cached for login.")
+                        put("token", token)
+                        put("platform", "android")
+                        put("is_active", true)
                     }
+                    SupabaseClientProvider.postgrest.from("device_tokens").upsert(tokenData) {
+                        onConflict = "token"
+                    }
+                    android.util.Log.d("NotificationRepo", "Device token registered to Supabase (user: ${user?.id ?: "guest"})")
                 }
             } catch (e: Exception) {
                 android.util.Log.e("NotificationRepo", "Failed registering device token: ${e.message}", e)

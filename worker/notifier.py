@@ -72,11 +72,13 @@ def send_notice_push_notification(
     from firebase_admin import messaging
 
     android_config = messaging.AndroidConfig(
-        priority="high" if is_high_priority else "normal",
+        priority="high",
         notification=messaging.AndroidNotification(
             channel_id=channel_id,
             click_action="FLUTTER_NOTIFICATION_CLICK",  # Compatible standard click intent
-            tag=notice_id
+            tag=notice_id,
+            default_sound=True,
+            default_vibrate_timings=True
         ),
         data={
             "notice_id": notice_id,

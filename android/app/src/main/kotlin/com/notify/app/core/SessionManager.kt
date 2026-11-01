@@ -3,6 +3,8 @@ package com.notify.app.core
 import android.content.Context
 import android.util.Log
 import com.notify.app.domain.models.UserProfile
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -223,38 +225,68 @@ object SessionManager {
         saveCachedNotifications(context, current.take(50))
     }
 
+    private val persistentDeletedIds = java.util.concurrent.CopyOnWriteArraySet<String>()
+
     fun clearAllNotifications(context: Context? = null) {
         val ctx = context ?: appContext ?: return
         val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().remove(KEY_CACHED_NOTIFICATIONS_JSON).apply()
+        prefs.edit().remove(KEY_CACHED_NOTIFICATIONS_JSON).commit()
     }
 
     fun getDeletedNotificationIds(context: Context? = null): Set<String> {
-        val ctx = context ?: appContext ?: return emptySet()
-        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getStringSet(KEY_DELETED_NOTIFICATIONS, emptySet()) ?: emptySet()
+        val ctx = context ?: appContext
+        if (ctx != null && persistentDeletedIds.isEmpty()) {
+            val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val json = prefs.getString(KEY_DELETED_NOTIFICATIONS, null)
+            if (!json.isNullOrBlank()) {
+                try {
+                    val ids = jsonHelper.decodeFromString(ListSerializer(String.serializer()), json)
+                    persistentDeletedIds.addAll(ids)
+                } catch (_: Exception) {}
+            }
+            // Fallback check legacy string set if present
+            try {
+                val legacy = prefs.getStringSet("legacy_deleted_notifs", null)
+                if (legacy != null) persistentDeletedIds.addAll(legacy)
+            } catch (_: Exception) {}
+        }
+        return persistentDeletedIds.toSet()
     }
 
     fun markNotificationAsDeleted(context: Context? = null, id: String) {
-        val ctx = context ?: appContext ?: return
-        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val current = prefs.getStringSet(KEY_DELETED_NOTIFICATIONS, emptySet())?.toMutableSet() ?: mutableSetOf()
-        current.add(id)
-        prefs.edit().putStringSet(KEY_DELETED_NOTIFICATIONS, current).apply()
-
-        // Also remove from cached list immediately
-        val notifs = getCachedNotifications(ctx).filterNot { it.id == id || it.noticeId == id }
-        val encoded = jsonHelper.encodeToString(kotlinx.serialization.builtins.ListSerializer(com.notify.app.domain.models.UserNotification.serializer()), notifs)
-        prefs.edit().putString(KEY_CACHED_NOTIFICATIONS_JSON, encoded).apply()
+        markAllAsDeleted(context, listOf(id))
     }
 
     fun markAllAsDeleted(context: Context? = null, ids: Collection<String>) {
+        if (ids.isEmpty()) return
+        val expanded = mutableSetOf<String>()
+        for (item in ids) {
+            val clean = item.trim()
+            if (clean.isBlank()) continue
+            expanded.add(clean)
+            if (clean.startsWith("notice_")) {
+                expanded.add(clean.removePrefix("notice_"))
+            } else {
+                expanded.add("notice_$clean")
+            }
+        }
+        persistentDeletedIds.addAll(expanded)
+
         val ctx = context ?: appContext ?: return
         val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val current = prefs.getStringSet(KEY_DELETED_NOTIFICATIONS, emptySet())?.toMutableSet() ?: mutableSetOf()
-        current.addAll(ids)
-        prefs.edit().putStringSet(KEY_DELETED_NOTIFICATIONS, current).apply()
-        clearAllNotifications(ctx)
+        try {
+            val encoded = jsonHelper.encodeToString(ListSerializer(String.serializer()), persistentDeletedIds.toList())
+            prefs.edit().putString(KEY_DELETED_NOTIFICATIONS, encoded).commit()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error saving deleted notification ids: ${e.message}")
+        }
+
+        // Also prune from cached notifications list immediately
+        try {
+            val notifs = getCachedNotifications(ctx).filterNot { expanded.contains(it.id) || (it.noticeId != null && expanded.contains(it.noticeId)) }
+            val encodedNotifs = jsonHelper.encodeToString(kotlinx.serialization.builtins.ListSerializer(com.notify.app.domain.models.UserNotification.serializer()), notifs)
+            prefs.edit().putString(KEY_CACHED_NOTIFICATIONS_JSON, encodedNotifs).commit()
+        } catch (_: Exception) {}
     }
 
     fun markNotificationAsRead(context: Context? = null, id: String) {

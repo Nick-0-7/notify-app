@@ -24,10 +24,12 @@ object NotificationHelper {
             val noticesChannel = NotificationChannel(
                 CHANNEL_NOTICES,
                 CHANNEL_NOTICES_NAME,
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Standard college notice updates and announcements"
                 enableLights(true)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 250, 250, 250)
             }
 
             val alertsChannel = NotificationChannel(
@@ -38,6 +40,7 @@ object NotificationHelper {
                 description = "Urgent college notifications, deadlines, and critical alerts"
                 enableLights(true)
                 enableVibration(true)
+                vibrationPattern = longArrayOf(0, 300, 200, 300)
             }
 
             notificationManager.createNotificationChannel(noticesChannel)
@@ -78,7 +81,8 @@ object NotificationHelper {
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setPriority(if (isHighPriority) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
 
