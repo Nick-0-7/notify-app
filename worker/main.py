@@ -176,6 +176,12 @@ async def run_worker(college_id_filter: Optional[str] = None):
         except Exception as e:
             logger.warning(f"Failed to cleanup expired posts: {e}")
 
+        # 4. Clean up expired notifications (> 90 days / 3 months old)
+        try:
+            db.cleanup_expired_notifications(max_days=90)
+        except Exception as e:
+            logger.warning(f"Failed to cleanup expired notifications: {e}")
+
         logger.info("Notify Worker completed all source checks successfully.")
         return 0
     finally:

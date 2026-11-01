@@ -284,6 +284,25 @@ class DatabaseClient:
             logger.error(f"Error cleaning expired community posts: {e}")
             return 0
 
+    def cleanup_expired_notifications(self, max_days: int = 90) -> int:
+        """
+        Deletes user inbox notifications older than max_days (default 90 days / 3 months).
+        """
+        client = self._get_client()
+        if not client:
+            return 0
+        try:
+            from datetime import datetime, timezone, timedelta
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=max_days)).isoformat()
+            res = client.table("user_notifications").delete().lt("created_at", cutoff).execute()
+            deleted_count = len(res.data) if res.data else 0
+            if deleted_count > 0:
+                logger.info(f"Cleaned up {deleted_count} expired user notifications (> {max_days} days old)")
+            return deleted_count
+        except Exception as e:
+            logger.error(f"Error cleaning expired notifications: {e}")
+            return 0
+
 
 db = DatabaseClient()
 

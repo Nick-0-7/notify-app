@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.notify.app.core.DateUtils
 import com.notify.app.data.repositories.RepositoryLocator
 import com.notify.app.domain.models.Notice
 import com.notify.app.domain.models.NoticeCategory
@@ -177,7 +178,7 @@ fun NoticeFeedScreen(
                                         )
                                     }
                                     Text(
-                                        text = (notice.publishedAt ?: notice.firstSeenAt)?.substringBefore("T") ?: "Recent",
+                                        text = DateUtils.formatPublishedDate(notice.publishedAt ?: notice.firstSeenAt),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -209,7 +210,7 @@ fun NoticeFeedScreen(
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            text = "Deadline: ${deadline.substringBefore("T")}",
+                                            text = "Deadline: ${DateUtils.formatDeadline(deadline)}",
                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                             color = MaterialTheme.colorScheme.error
                                         )
@@ -355,7 +356,7 @@ fun NoticeDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Published: ${(currentNotice.publishedAt ?: currentNotice.firstSeenAt)?.substringBefore("T") ?: "Recent"}",
+                        text = "Published: ${DateUtils.formatPublishedDate(currentNotice.publishedAt ?: currentNotice.firstSeenAt)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -404,10 +405,10 @@ fun NoticeDetailScreen(
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                             ext?.datesExtracted?.forEach { dateText ->
-                                Text("• $dateText", style = MaterialTheme.typography.bodyMedium)
+                                Text("• ${DateUtils.formatToDdMmYyyy(dateText)}", style = MaterialTheme.typography.bodyMedium)
                             }
                             ext?.deadlinesExtracted?.forEach { deadline ->
-                                Text("• Final Deadline: $deadline", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold)
+                                Text("• Final Deadline: ${DateUtils.formatDeadline(deadline)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold)
                             }
 
                             Spacer(modifier = Modifier.height(12.dp))

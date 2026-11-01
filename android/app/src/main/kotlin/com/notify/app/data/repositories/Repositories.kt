@@ -486,6 +486,35 @@ class NoticeRepositoryImpl(private val forceMock: Boolean = false) : NoticeRepos
             )
         ),
         Notice(
+            id = "not-w26-lab-form-filling",
+            collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
+            sourceId = "927ca3b8-9a15-4a6d-84cb-58c511f1e845",
+            canonicalUrl = "https://www.sitcoe.ac.in/wp-content/uploads/Winter-Semester-Examination-2026-Old-Syllabus-Backlog-Laboratory-Courses-FY.B.Tech-SYBTechTY.B.Tech-Form-Filling.pdf",
+            originalUrl = "https://www.sitcoe.ac.in/wp-content/uploads/Winter-Semester-Examination-2026-Old-Syllabus-Backlog-Laboratory-Courses-FY.B.Tech-SYBTechTY.B.Tech-Form-Filling.pdf",
+            title = "Winter Semester Examination 2026 [Old Syllabus Backlog Laboratory Courses] FY, SY & TY B.Tech Form Filling",
+            rawContent = "Sharad Institute of Technology College of Engineering Examination Section Notice: Winter Semester Examination 2026 Old Syllabus Backlog Laboratory Courses (FY.B.Tech, SY.B.Tech, TY.B.Tech) online examination form filling is now open. All concerned students must submit their examination form online before November 03, 2026 without late fee.",
+            normalizedContent = "winter semester examination 2026 old syllabus backlog laboratory courses fybtech sybtech tybtech form filling online mode",
+            contentHash = "a1b2c3d4e5f60718293a4b5c6d7e8f901234567890abcdef1234567890abcdef",
+            documentType = "PDF",
+            publishedAt = "2026-10-31T09:00:00Z",
+            extraction = NoticeExtraction(
+                id = "ext-w26-lab-01",
+                noticeId = "not-w26-lab-form-filling",
+                category = NoticeCategory.EXAMINATION,
+                datesExtracted = listOf("03rd November 2026 (Without Late Fee)", "05th November 2026 (With Late Fee)"),
+                deadlinesExtracted = listOf("2026-11-03T17:00:00Z"),
+                eligibilityCriteria = listOf("FY, SY, TY B.Tech Students with Backlog in Old Syllabus Laboratory Courses"),
+                requiredDocuments = listOf("Previous Semester Grade Cards", "Fee Payment Receipt"),
+                actionItems = listOf(
+                    "Submit Examination Form in Online Mode",
+                    "Pay required exam fee before 03rd November 2026",
+                    "Verify course codes for Backlog Laboratory subjects"
+                ),
+                confidenceScore = 0.98f,
+                isVerifiedByModerator = true
+            )
+        ),
+        Notice(
             id = "6e95adb2-72d9-43bc-ba9a-690fa9d9386e",
             collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
             sourceId = "464858d7-9a35-48d6-bc7d-0eec2c46fa68",
@@ -795,13 +824,46 @@ class SourceRepositoryImpl : SourceRepository {
         NoticeSource(
             id = "927ca3b8-9a15-4a6d-84cb-58c511f1e845",
             collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
-            label = "SITCOE Notices & Circulars",
-            url = "https://www.sitcoe.ac.in/notice-1/",
+            label = "SITCOE Official Notifications",
+            url = "https://www.sitcoe.ac.in/notification/",
             sourceType = SourceType.NOTICE_BOARD_PAGE,
             status = SourceStatus.APPROVED_ACTIVE,
             checkIntervalMinutes = 15,
-            lastCheckedAt = "2026-10-29T08:08:00Z",
-            lastSuccessAt = "2026-10-29T08:08:00Z"
+            lastCheckedAt = "2026-11-01T04:00:00Z",
+            lastSuccessAt = "2026-11-01T04:00:00Z"
+        ),
+        NoticeSource(
+            id = "b5a943a1-4328-48fe-a90b-0ea4fbcd9741",
+            collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
+            label = "SITCOE Notifications RSS Feed",
+            url = "https://www.sitcoe.ac.in/notification/feed/",
+            sourceType = SourceType.RSS_FEED,
+            status = SourceStatus.APPROVED_ACTIVE,
+            checkIntervalMinutes = 15,
+            lastCheckedAt = "2026-11-01T04:00:00Z",
+            lastSuccessAt = "2026-11-01T04:00:00Z"
+        ),
+        NoticeSource(
+            id = "c4371bf9-e705-4d0f-a38f-51920ee86d12",
+            collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
+            label = "SITCOE Exam Time Tables",
+            url = "https://www.sitcoe.ac.in/exam-time-table/feed/",
+            sourceType = SourceType.RSS_FEED,
+            status = SourceStatus.APPROVED_ACTIVE,
+            checkIntervalMinutes = 15,
+            lastCheckedAt = "2026-11-01T04:00:00Z",
+            lastSuccessAt = "2026-11-01T04:00:00Z"
+        ),
+        NoticeSource(
+            id = "e89104ba-81f3-4e4b-91bb-bc858d4a6730",
+            collegeId = "b0f5e79d-9f32-44fd-a437-94f04a393088",
+            label = "SITCOE Exam Form Filling",
+            url = "https://www.sitcoe.ac.in/exam-form-filling/",
+            sourceType = SourceType.NOTICE_BOARD_PAGE,
+            status = SourceStatus.APPROVED_ACTIVE,
+            checkIntervalMinutes = 15,
+            lastCheckedAt = "2026-11-01T04:00:00Z",
+            lastSuccessAt = "2026-11-01T04:00:00Z"
         ),
         NoticeSource(
             id = "8830326e-2035-416d-a172-e0b452d3fda4",
@@ -1313,22 +1375,28 @@ interface NotificationRepository {
     suspend fun getNotifications(): List<UserNotification>
     suspend fun markAsRead(notificationId: String)
     suspend fun markAllAsRead()
+    suspend fun deleteNotification(notificationId: String)
     suspend fun clearAll()
     suspend fun registerDeviceToken(token: String)
 }
 
 class NotificationRepositoryImpl(
-    private val customNoticeRepository: NoticeRepository? = null
+    private val customNoticeRepository: NoticeRepository? = null,
+    private val forceMock: Boolean = false
 ) : NotificationRepository {
     private val notifications = CopyOnWriteArrayList<UserNotification>()
     private val inMemoryReadIds = CopyOnWriteArraySet<String>()
+    private val inMemoryDeletedIds = CopyOnWriteArraySet<String>()
 
     override suspend fun getNotifications(): List<UserNotification> = withContext(Dispatchers.IO) {
         val ctx = com.notify.app.core.SessionManager.context
+        val deletedIds = com.notify.app.core.SessionManager.getDeletedNotificationIds(ctx) + inMemoryDeletedIds
         val cached = com.notify.app.core.SessionManager.getCachedNotifications(ctx)
+            .filterNot { deletedIds.contains(it.id) || (it.noticeId != null && deletedIds.contains(it.noticeId)) }
+            .filterNot { com.notify.app.core.SessionManager.isOlderThanThreeMonths(it.createdAt) }
         val readIds = com.notify.app.core.SessionManager.getReadNotificationIds(ctx) + inMemoryReadIds
 
-        // Sync real college notices into inbox notifications
+        // Sync real college notices into inbox notifications (max 3 months old)
         val colId = com.notify.app.core.SessionManager.getActiveCollegeId(ctx) ?: "b0f5e79d-9f32-44fd-a437-94f04a393088"
         val realNotices = try {
             val repo = customNoticeRepository ?: RepositoryLocator.noticeRepository
@@ -1337,7 +1405,10 @@ class NotificationRepositoryImpl(
             emptyList()
         }
 
-        val noticeNotifs = realNotices.take(20).map { n ->
+        val noticeNotifs = realNotices
+            .filterNot { deletedIds.contains("notice_${it.id}") || deletedIds.contains(it.id) }
+            .filterNot { com.notify.app.core.SessionManager.isOlderThanThreeMonths(it.publishedAt ?: it.firstSeenAt) }
+            .take(20).map { n ->
             val notifId = "notice_${n.id}"
             val bodyText = if (n.rawContent.isNotBlank()) {
                 if (n.rawContent.length > 120) n.rawContent.take(117) + "..." else n.rawContent
@@ -1358,8 +1429,14 @@ class NotificationRepositoryImpl(
             )
         }
 
-        val combined = (cached + noticeNotifs).distinctBy { it.id }.sortedByDescending { it.createdAt ?: "" }.toMutableList()
-        if (combined.isEmpty()) {
+        val combined = (cached + noticeNotifs)
+            .filterNot { deletedIds.contains(it.id) || (it.noticeId != null && deletedIds.contains(it.noticeId)) }
+            .filterNot { com.notify.app.core.SessionManager.isOlderThanThreeMonths(it.createdAt) }
+            .distinctBy { it.id }
+            .sortedByDescending { it.createdAt ?: "" }
+            .toMutableList()
+
+        if (combined.isEmpty() && !deletedIds.contains("welcome_notif")) {
             combined.add(
                 UserNotification(
                     id = "welcome_notif",
@@ -1403,11 +1480,56 @@ class NotificationRepositoryImpl(
         com.notify.app.core.SessionManager.saveCachedNotifications(ctx, updated)
     }
 
-    override suspend fun clearAll() {
-        inMemoryReadIds.clear()
+    override suspend fun deleteNotification(notificationId: String) = withContext(Dispatchers.IO) {
+        inMemoryDeletedIds.add(notificationId)
+        val notif = notifications.find { it.id == notificationId }
+        if (notif?.noticeId != null) {
+            inMemoryDeletedIds.add(notif.noticeId)
+            inMemoryDeletedIds.add("notice_${notif.noticeId}")
+        }
         val ctx = com.notify.app.core.SessionManager.context
-        com.notify.app.core.SessionManager.clearAllNotifications(ctx)
+        com.notify.app.core.SessionManager.markNotificationAsDeleted(ctx, notificationId)
+        if (notif?.noticeId != null) {
+            com.notify.app.core.SessionManager.markNotificationAsDeleted(ctx, notif.noticeId)
+            com.notify.app.core.SessionManager.markNotificationAsDeleted(ctx, "notice_${notif.noticeId}")
+        }
+        notifications.removeAll { it.id == notificationId || (notif?.noticeId != null && it.noticeId == notif.noticeId) }
+
+        // Also delete from Supabase if configured
+        if (SupabaseClientProvider.isConfigured && !forceMock) {
+            try {
+                SupabaseClientProvider.postgrest.from("user_notifications").delete {
+                    filter { eq("id", notificationId) }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("NotifRepo", "Supabase notification delete notice: ${e.message}")
+            }
+        }
+    }
+
+    override suspend fun clearAll() = withContext(Dispatchers.IO) {
+        val allIds = notifications.map { it.id }.toSet()
+        val noticeIds = notifications.mapNotNull { it.noticeId }.toSet()
+        val allKeys = allIds + noticeIds + noticeIds.map { "notice_$it" } + listOf("welcome_notif")
+        inMemoryDeletedIds.addAll(allKeys)
+
+        val ctx = com.notify.app.core.SessionManager.context
+        com.notify.app.core.SessionManager.markAllAsDeleted(ctx, allKeys)
         notifications.clear()
+
+        // Also clear from Supabase if configured
+        if (SupabaseClientProvider.isConfigured && !forceMock) {
+            try {
+                val user = SupabaseClientProvider.auth.currentUserOrNull()
+                if (user != null) {
+                    SupabaseClientProvider.postgrest.from("user_notifications").delete {
+                        filter { eq("user_id", user.id) }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("NotifRepo", "Supabase clear all notifications notice: ${e.message}")
+            }
+        }
     }
 
     override suspend fun registerDeviceToken(token: String) {

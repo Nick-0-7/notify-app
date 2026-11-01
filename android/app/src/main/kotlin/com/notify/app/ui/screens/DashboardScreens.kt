@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.notify.app.core.DateUtils
 import com.notify.app.data.repositories.RepositoryLocator
 import com.notify.app.domain.models.Notice
 
@@ -114,8 +115,8 @@ fun HomeDashboardScreen(
             item {
                 if (urgentNotice != null) {
                     val deadlineText = urgentNotice.extraction?.deadlinesExtracted?.firstOrNull()?.let {
-                        "Deadline: ${it.substringBefore("T")}"
-                    } ?: (urgentNotice.publishedAt ?: urgentNotice.firstSeenAt)?.substringBefore("T")?.let { "Published: $it" } ?: "Recent Notice"
+                        "Deadline: ${DateUtils.formatDeadline(it)}"
+                    } ?: (urgentNotice.publishedAt ?: urgentNotice.firstSeenAt)?.let { "Published: ${DateUtils.formatPublishedDate(it)}" } ?: "Recent Notice"
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -299,7 +300,7 @@ fun HomeDashboardScreen(
                                     )
                                 }
                                 Text(
-                                    text = (notice.publishedAt ?: notice.firstSeenAt)?.substringBefore("T") ?: "Recent",
+                                    text = DateUtils.formatPublishedDate(notice.publishedAt ?: notice.firstSeenAt),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

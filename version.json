@@ -1,7 +1,7 @@
 {
-  "versionCode": 22,
-  "versionName": "1.0.21",
-  "title": "Notify v1.0.21",
-  "releaseNotes": "- Added SITCOE Moodle portal (http://103.232.247.227/moodle/) and Student Result & ERP portal (https://student.sitcoeapps.in/itxlogin) to live monitored sources\n- Made monitored sources directly clickable with 1-tap browser access in app",
-  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.21/Notify-v1.0.apk"
+  "versionCode": 23,
+  "versionName": "1.0.22",
+  "title": "Notify v1.0.22",
+  "releaseNotes": "- Formatted all notice publish dates and final deadlines into dd/MM/yyyy format across Dashboard, Notices, and Inbox\n- Fixed notification inbox delete functionality with instant removal and persistent tombstone tracking\n- Auto-prune and hide notifications older than 3 months (90 days) on both app and worker\n- Added live official SITCOE Notifications XML RSS feed (https://www.sitcoe.ac.in/notification/feed/) and Exam Timetable feed to ensure real-time notice capture\n- Ingested Winter Semester Examination 2026 Old Syllabus Backlog Laboratory Courses Form Filling circular",
+  "downloadUrl": "https://github.com/Nick-0-7/notify-app/releases/download/v1.0.22/Notify-v1.0.apk"
 }

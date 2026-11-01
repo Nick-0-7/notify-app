@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.notify.app.core.DateUtils
 import com.notify.app.data.repositories.RepositoryLocator
 import com.notify.app.domain.models.Bookmark
 import com.notify.app.domain.models.UserNotification
@@ -32,6 +33,7 @@ fun NotificationInboxScreen(
     var notifications by remember { mutableStateOf<List<UserNotification>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var selectedNotifForDetail by remember { mutableStateOf<UserNotification?>(null) }
+    var showClearAllDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     fun load() {
@@ -44,6 +46,32 @@ fun NotificationInboxScreen(
 
     LaunchedEffect(Unit) {
         load()
+    }
+
+    if (showClearAllDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearAllDialog = false },
+            title = { Text("Clear All Notifications?", fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure you want to permanently delete all notifications from your inbox? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            notifRepo.clearAll()
+                            notifications = emptyList()
+                            showClearAllDialog = false
+                        }
+                    }
+                ) {
+                    Text("Clear All", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearAllDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -79,15 +107,8 @@ fun NotificationInboxScreen(
                         }
                     }
                     if (notifications.isNotEmpty()) {
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    notifRepo.clearAll()
-                                    notifications = emptyList()
-                                }
-                            }
-                        ) {
-                            Icon(Icons.Default.DeleteSweep, contentDescription = "Clear all")
+                        IconButton(onClick = { showClearAllDialog = true }) {
+                            Icon(Icons.Default.DeleteSweep, contentDescription = "Clear all notifications")
                         }
                     }
                     IconButton(onClick = { load() }) {
@@ -107,7 +128,7 @@ fun NotificationInboxScreen(
                         Text(n.body, style = MaterialTheme.typography.bodyMedium)
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Received: ${n.createdAt ?: "Recently"}",
+                            text = "Received: ${DateUtils.formatToDdMmYyyy(n.createdAt)}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -116,6 +137,20 @@ fun NotificationInboxScreen(
                 confirmButton = {
                     TextButton(onClick = { selectedNotifForDetail = null }) {
                         Text("Close")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            val targetId = n.id
+                            selectedNotifForDetail = null
+                            scope.launch {
+                                notifRepo.deleteNotification(targetId)
+                                notifications = notifications.filter { it.id != targetId }
+                            }
+                        }
+                    ) {
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
                     }
                 }
             )
@@ -162,7 +197,7 @@ fun NotificationInboxScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(notifications) { notif ->
+                items(notifications, key = { it.id }) { notif ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -218,9 +253,25 @@ fun NotificationInboxScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = notif.createdAt ?: "Recently",
+                                    text = DateUtils.formatToDdMmYyyy(notif.createdAt),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                        notifRepo.deleteNotification(notif.id)
+                                        notifications = notifications.filter { it.id != notif.id }
+                                    }
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.DeleteOutline,
+                                    contentDescription = "Delete notification",
+                                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                             Icon(
@@ -318,7 +369,7 @@ fun BookmarksScreen(
                                         )
                                     }
                                     Text(
-                                        text = (notice.publishedAt ?: notice.firstSeenAt)?.substringBefore("T") ?: "Recent",
+                                        text = DateUtils.formatPublishedDate(notice.publishedAt ?: notice.firstSeenAt),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
