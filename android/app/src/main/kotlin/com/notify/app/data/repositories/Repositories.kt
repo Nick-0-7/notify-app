@@ -1392,9 +1392,11 @@ class NotificationRepositoryImpl(
     override suspend fun getNotifications(): List<UserNotification> = withContext(Dispatchers.IO) {
         val ctx = com.notify.app.core.SessionManager.context
         val deletedIds = com.notify.app.core.SessionManager.getDeletedNotificationIds(ctx) + inMemoryDeletedIds
+        val clearedAllTs = com.notify.app.core.SessionManager.getClearedAllTimestamp(ctx)
         val cached = com.notify.app.core.SessionManager.getCachedNotifications(ctx)
             .filterNot { deletedIds.contains(it.id) || (it.noticeId != null && deletedIds.contains(it.noticeId)) }
             .filterNot { com.notify.app.core.SessionManager.isOlderThanThreeMonths(it.createdAt) }
+            .filterNot { com.notify.app.core.SessionManager.isBeforeClearedAll(it.createdAt, clearedAllTs) }
         val readIds = com.notify.app.core.SessionManager.getReadNotificationIds(ctx) + inMemoryReadIds
 
         // Sync real college notices into inbox notifications (max 3 months old)
@@ -1409,6 +1411,7 @@ class NotificationRepositoryImpl(
         val noticeNotifs = realNotices
             .filterNot { deletedIds.contains("notice_${it.id}") || deletedIds.contains(it.id) }
             .filterNot { com.notify.app.core.SessionManager.isOlderThanThreeMonths(it.publishedAt ?: it.firstSeenAt) }
+            .filterNot { com.notify.app.core.SessionManager.isBeforeClearedAll(it.publishedAt ?: it.firstSeenAt, clearedAllTs) }
             .take(20).map { n ->
             val notifId = "notice_${n.id}"
             val bodyText = if (n.rawContent.isNotBlank()) {
@@ -1433,11 +1436,12 @@ class NotificationRepositoryImpl(
         val combined = (cached + noticeNotifs)
             .filterNot { deletedIds.contains(it.id) || (it.noticeId != null && deletedIds.contains(it.noticeId)) }
             .filterNot { com.notify.app.core.SessionManager.isOlderThanThreeMonths(it.createdAt) }
+            .filterNot { com.notify.app.core.SessionManager.isBeforeClearedAll(it.createdAt, clearedAllTs) }
             .distinctBy { it.id }
             .sortedByDescending { it.createdAt ?: "" }
             .toMutableList()
 
-        if (combined.isEmpty() && !deletedIds.contains("welcome_notif")) {
+        if (combined.isEmpty() && !deletedIds.contains("welcome_notif") && clearedAllTs == 0L) {
             combined.add(
                 UserNotification(
                     id = "welcome_notif",
@@ -1498,7 +1502,9 @@ class NotificationRepositoryImpl(
                 allKeys.add("notice_$clean")
             }
         }
-        for (notif in notifications) {
+        val ctx = com.notify.app.core.SessionManager.context
+        val currentAndCached = notifications + com.notify.app.core.SessionManager.getCachedNotifications(ctx)
+        for (notif in currentAndCached) {
             if (allKeys.contains(notif.id) || (notif.noticeId != null && allKeys.contains(notif.noticeId))) {
                 allKeys.add(notif.id)
                 if (!notif.noticeId.isNullOrBlank()) {
@@ -1508,9 +1514,11 @@ class NotificationRepositoryImpl(
             }
         }
         inMemoryDeletedIds.addAll(allKeys)
-        val ctx = com.notify.app.core.SessionManager.context
         com.notify.app.core.SessionManager.markAllAsDeleted(ctx, allKeys)
         notifications.removeAll { allKeys.contains(it.id) || (it.noticeId != null && allKeys.contains(it.noticeId)) }
+        if (ctx != null) {
+            com.notify.app.core.SessionManager.saveCachedNotifications(ctx, notifications.toList())
+        }
 
         // Also delete from Supabase if configured
         if (SupabaseClientProvider.isConfigured && !forceMock) {
@@ -1520,18 +1528,36 @@ class NotificationRepositoryImpl(
                         filter { eq("id", id) }
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 android.util.Log.w("NotifRepo", "Supabase notifications bulk delete notice: ${e.message}")
             }
         }
     }
 
     override suspend fun clearAll() = withContext(Dispatchers.IO) {
+        val ctx = com.notify.app.core.SessionManager.context
         val allIds = notifications.map { it.id }.toSet()
         val noticeIds = notifications.mapNotNull { it.noticeId }.toSet()
-        val allKeys = allIds + noticeIds + noticeIds.map { "notice_$it" } + listOf("welcome_notif")
+        
+        // Also fetch all current real notices for active college to ensure all notice IDs are purged
+        val colId = com.notify.app.core.SessionManager.getActiveCollegeId(ctx) ?: "b0f5e79d-9f32-44fd-a437-94f04a393088"
+        val realNoticeIds = try {
+            val repo = customNoticeRepository ?: RepositoryLocator.noticeRepository
+            repo.getNotices(colId).map { it.id }.toSet()
+        } catch (_: Throwable) {
+            emptySet()
+        }
+
+        val allKeys = allIds + noticeIds + noticeIds.map { "notice_$it" } + 
+                      realNoticeIds + realNoticeIds.map { "notice_$it" } + 
+                      listOf("welcome_notif", "notice_welcome_notif")
         deleteNotifications(allKeys)
         notifications.clear()
+
+        if (ctx != null) {
+            com.notify.app.core.SessionManager.setClearedAllTimestamp(ctx)
+            com.notify.app.core.SessionManager.clearAllNotifications(ctx)
+        }
 
         // Also clear from Supabase if configured
         if (SupabaseClientProvider.isConfigured && !forceMock) {
@@ -1542,8 +1568,8 @@ class NotificationRepositoryImpl(
                         filter { eq("user_id", user.id) }
                     }
                 }
-            } catch (e: Exception) {
-                android.util.Log.w("NotifRepo", "Supabase clear all notifications notice: ${e.message}")
+            } catch (e: Throwable) {
+                android.util.Log.w("NotifRepo", "Supabase notifications clearAll: ${e.message}")
             }
         }
     }

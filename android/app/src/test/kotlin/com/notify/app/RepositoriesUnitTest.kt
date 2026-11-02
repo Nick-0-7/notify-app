@@ -149,7 +149,7 @@ class RepositoriesUnitTest {
     @Test
     fun testNotificationInbox() = runTest {
         val noticeRepo = NoticeRepositoryImpl(forceMock = true)
-        val notifRepo = NotificationRepositoryImpl(customNoticeRepository = noticeRepo)
+        val notifRepo = NotificationRepositoryImpl(customNoticeRepository = noticeRepo, forceMock = true)
 
         val notifs = notifRepo.getNotifications()
         assertTrue(notifs.isNotEmpty())
@@ -160,5 +160,14 @@ class RepositoriesUnitTest {
         val updatedNotifs = notifRepo.getNotifications()
         val readNotif = updatedNotifs.find { it.id == unread.id }
         assertTrue(readNotif!!.isRead)
+
+        val toDelete = updatedNotifs.first()
+        notifRepo.deleteNotification(toDelete.id)
+        val afterDelete = notifRepo.getNotifications()
+        assertNull(afterDelete.find { it.id == toDelete.id })
+
+        notifRepo.clearAll()
+        val afterClear = notifRepo.getNotifications()
+        assertTrue(afterClear.isEmpty())
     }
 }

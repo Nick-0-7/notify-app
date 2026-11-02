@@ -143,6 +143,7 @@ object SessionManager {
     private const val KEY_CACHED_NOTIFICATIONS_JSON = "cached_notifications_json"
     private const val KEY_READ_NOTIFICATIONS = "read_notification_ids"
     private const val KEY_DELETED_NOTIFICATIONS = "deleted_notification_ids"
+    private const val KEY_CLEARED_ALL_TIMESTAMP = "cleared_all_notifications_timestamp"
     private const val THREE_MONTHS_MILLIS = 90L * 24L * 60L * 60L * 1000L // 90 days (3 months)
 
     fun isOlderThanThreeMonths(dateStr: String?): Boolean {
@@ -172,18 +173,59 @@ object SessionManager {
         return false
     }
 
+    fun isBeforeClearedAll(dateStr: String?, clearedAllTs: Long): Boolean {
+        if (clearedAllTs <= 0L || dateStr.isNullOrBlank()) return false
+        val clean = dateStr.trim()
+        if (clean.equals("Today", ignoreCase = true) || clean.equals("Recently", ignoreCase = true) || clean.equals("Just now", ignoreCase = true)) {
+            return false
+        }
+        val formats = listOf(
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") },
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") },
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US),
+            SimpleDateFormat("yyyy-MM-dd", Locale.US),
+            SimpleDateFormat("dd/MM/yyyy", Locale.US),
+            SimpleDateFormat("dd-MM-yyyy", Locale.US),
+            SimpleDateFormat("yyyy/MM/dd", Locale.US)
+        )
+        for (sdf in formats) {
+            try {
+                val d = sdf.parse(clean)
+                if (d != null) {
+                    return d.time <= clearedAllTs
+                }
+            } catch (_: Exception) {}
+        }
+        return false
+    }
+
+    fun setClearedAllTimestamp(context: Context? = null, timestamp: Long = System.currentTimeMillis()) {
+        val ctx = context ?: appContext ?: return
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putLong(KEY_CLEARED_ALL_TIMESTAMP, timestamp).commit()
+        Log.d(TAG, "Recorded inbox clearAll timestamp: $timestamp")
+    }
+
+    fun getClearedAllTimestamp(context: Context? = null): Long {
+        val ctx = context ?: appContext ?: return 0L
+        val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getLong(KEY_CLEARED_ALL_TIMESTAMP, 0L)
+    }
+
     fun saveCachedNotifications(context: Context? = null, notifications: List<com.notify.app.domain.models.UserNotification>) {
         val ctx = context ?: appContext ?: return
         try {
             val deletedIds = getDeletedNotificationIds(ctx)
-            // Filter out notifications older than 3 months and any deleted notifications
+            val clearedAllTs = getClearedAllTimestamp(ctx)
+            // Filter out notifications older than 3 months, before clearAll, and any deleted notifications
             val valid = notifications
                 .filterNot { isOlderThanThreeMonths(it.createdAt) }
+                .filterNot { isBeforeClearedAll(it.createdAt, clearedAllTs) }
                 .filterNot { deletedIds.contains(it.id) || (it.noticeId != null && deletedIds.contains(it.noticeId)) }
 
             val encoded = jsonHelper.encodeToString(kotlinx.serialization.builtins.ListSerializer(com.notify.app.domain.models.UserNotification.serializer()), valid)
             val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            prefs.edit().putString(KEY_CACHED_NOTIFICATIONS_JSON, encoded).apply()
+            prefs.edit().putString(KEY_CACHED_NOTIFICATIONS_JSON, encoded).commit()
             Log.d(TAG, "Cached ${valid.size} notifications locally (pruned ${notifications.size - valid.size} expired/deleted)")
         } catch (e: Exception) {
             Log.w(TAG, "Error caching notifications: ${e.message}")
@@ -197,9 +239,11 @@ object SessionManager {
         return try {
             val decoded = jsonHelper.decodeFromString(kotlinx.serialization.builtins.ListSerializer(com.notify.app.domain.models.UserNotification.serializer()), raw)
             val deletedIds = getDeletedNotificationIds(ctx)
-            // Filter out any notification older than 3 months or deleted by student
+            val clearedAllTs = getClearedAllTimestamp(ctx)
+            // Filter out any notification older than 3 months, before clearAll, or deleted by student
             val filtered = decoded
                 .filterNot { isOlderThanThreeMonths(it.createdAt) }
+                .filterNot { isBeforeClearedAll(it.createdAt, clearedAllTs) }
                 .filterNot { deletedIds.contains(it.id) || (it.noticeId != null && deletedIds.contains(it.noticeId)) }
 
             // Auto-clean cache if older or deleted items were pruned
@@ -217,7 +261,11 @@ object SessionManager {
     fun addNotification(context: Context? = null, notification: com.notify.app.domain.models.UserNotification) {
         if (isOlderThanThreeMonths(notification.createdAt)) return
         val ctx = context ?: appContext
-        if (ctx != null && getDeletedNotificationIds(ctx).contains(notification.id)) return
+        if (ctx != null) {
+            val clearedAllTs = getClearedAllTimestamp(ctx)
+            if (isBeforeClearedAll(notification.createdAt, clearedAllTs)) return
+            if (getDeletedNotificationIds(ctx).contains(notification.id)) return
+        }
 
         val current = getCachedNotifications(context).toMutableList()
         current.removeAll { it.id == notification.id }
@@ -229,13 +277,14 @@ object SessionManager {
 
     fun clearAllNotifications(context: Context? = null) {
         val ctx = context ?: appContext ?: return
+        setClearedAllTimestamp(ctx)
         val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().remove(KEY_CACHED_NOTIFICATIONS_JSON).commit()
     }
 
     fun getDeletedNotificationIds(context: Context? = null): Set<String> {
         val ctx = context ?: appContext
-        if (ctx != null && persistentDeletedIds.isEmpty()) {
+        if (ctx != null) {
             val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val json = prefs.getString(KEY_DELETED_NOTIFICATIONS, null)
             if (!json.isNullOrBlank()) {
@@ -259,6 +308,11 @@ object SessionManager {
 
     fun markAllAsDeleted(context: Context? = null, ids: Collection<String>) {
         if (ids.isEmpty()) return
+        val ctx = context ?: appContext
+        // Always load existing deleted notification IDs before adding new ones
+        if (ctx != null) {
+            getDeletedNotificationIds(ctx)
+        }
         val expanded = mutableSetOf<String>()
         for (item in ids) {
             val clean = item.trim()
@@ -272,7 +326,7 @@ object SessionManager {
         }
         persistentDeletedIds.addAll(expanded)
 
-        val ctx = context ?: appContext ?: return
+        if (ctx == null) return
         val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         try {
             val encoded = jsonHelper.encodeToString(ListSerializer(String.serializer()), persistentDeletedIds.toList())

@@ -343,31 +343,7 @@ fun NotificationInboxScreen(
                 items(notifications, key = { it.id }) { notif ->
                     val isSelected = selectedIds.contains(notif.id)
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .combinedClickable(
-                                onClick = {
-                                    if (isSelectionMode) {
-                                        selectedIds = if (isSelected) selectedIds - notif.id else selectedIds + notif.id
-                                    } else {
-                                        scope.launch { notifRepo.markAsRead(notif.id) }
-                                        notifications = notifications.map {
-                                            if (it.id == notif.id) it.copy(isRead = true) else it
-                                        }
-                                        if (!notif.noticeId.isNullOrBlank() && notif.noticeId != "general") {
-                                            onNavigateToNotice(notif.noticeId)
-                                        } else {
-                                            selectedNotifForDetail = notif
-                                        }
-                                    }
-                                },
-                                onLongClick = {
-                                    if (!isSelectionMode) {
-                                        isSelectionMode = true
-                                        selectedIds = setOf(notif.id)
-                                    }
-                                }
-                            ),
+                        modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = if (isSelected) {
@@ -380,54 +356,90 @@ fun NotificationInboxScreen(
                         )
                     ) {
                         Row(
-                            modifier = Modifier.padding(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp, horizontal = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (isSelectionMode) {
-                                Checkbox(
-                                    checked = isSelected,
-                                    onCheckedChange = { checked ->
-                                        selectedIds = if (checked) selectedIds + notif.id else selectedIds - notif.id
-                                    }
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                            } else if (!notif.isRead) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(10.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary)
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                            } else {
-                                Icon(
-                                    imageVector = if (notif.notificationType == "ALERT") Icons.Default.Campaign else Icons.Default.Description,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
+                            // Tappable content area for reading / navigating
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .combinedClickable(
+                                        onClick = {
+                                            if (isSelectionMode) {
+                                                selectedIds = if (isSelected) selectedIds - notif.id else selectedIds + notif.id
+                                            } else {
+                                                scope.launch { notifRepo.markAsRead(notif.id) }
+                                                notifications = notifications.map {
+                                                    if (it.id == notif.id) it.copy(isRead = true) else it
+                                                }
+                                                if (!notif.noticeId.isNullOrBlank() && notif.noticeId != "general") {
+                                                    onNavigateToNotice(notif.noticeId)
+                                                } else {
+                                                    selectedNotifForDetail = notif
+                                                }
+                                            }
+                                        },
+                                        onLongClick = {
+                                            if (!isSelectionMode) {
+                                                isSelectionMode = true
+                                                selectedIds = setOf(notif.id)
+                                            }
+                                        }
+                                    )
+                                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (isSelectionMode) {
+                                    Checkbox(
+                                        checked = isSelected,
+                                        onCheckedChange = { checked ->
+                                            selectedIds = if (checked) selectedIds + notif.id else selectedIds - notif.id
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                } else if (!notif.isRead) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                } else {
+                                    Icon(
+                                        imageVector = if (notif.notificationType == "ALERT") Icons.Default.Campaign else Icons.Default.Description,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = notif.title,
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = notif.body,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = DateUtils.formatToDdMmYyyy(notif.createdAt),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = notif.title,
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = notif.body,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = DateUtils.formatToDdMmYyyy(notif.createdAt),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
+
+                            // Independent delete button (never triggers item navigation)
                             if (!isSelectionMode) {
                                 IconButton(
                                     onClick = {
@@ -436,19 +448,20 @@ fun NotificationInboxScreen(
                                             notifications = notifications.filter { it.id != notif.id }
                                         }
                                     },
-                                    modifier = Modifier.size(36.dp)
+                                    modifier = Modifier.size(40.dp)
                                 ) {
                                     Icon(
                                         Icons.Default.DeleteOutline,
                                         contentDescription = "Delete notification",
-                                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
-                                        modifier = Modifier.size(20.dp)
+                                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
+                                        modifier = Modifier.size(22.dp)
                                     )
                                 }
                                 Icon(
                                     Icons.Default.ChevronRight,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
